@@ -1,0 +1,52 @@
+#define healthX 0.08
+#define healthY  0.15
+#define healthDimX 0.1
+#define healthDimY 0.02
+#define spacing    0.02
+
+/* La posizione forse è giusta */
+class status
+{
+	var number;
+	
+	init();
+	update(view);
+	draw(number, view);
+};
+
+function status::init()
+{
+	number = 3;
+	draw(number);
+}
+
+function status::update(view)
+{
+	draw(number, view);
+}
+
+function status::draw(number, view)
+{
+	if (view)
+	{
+		ConsoleColor(1.0, 0.0, 0.0, 1.0);
+		ConsoleText(0.5, 0.65, "o");
+	}
+	else 
+	{
+		ConsoleColor(1.0, 0.0, 0.0, 1.0);
+		ConsoleText(0.5, 0.25, "o");
+	}
+	
+	if (number == 3)
+	{
+		ConsoleColor(0.0, 1.0, 0.0, 1.0);
+		ConsoleFilledRect(healthX, healthY, healthDimX, healthDimY);	
+		ConsoleColor(1.0, 1.0, 0.0, 1.0);
+		ConsoleFilledRect(healthX, healthY-2*spacing, healthDimX, healthDimY);
+		ConsoleColor(1.0, 0.0, 0.0, 1.0);
+		ConsoleFilledRect(healthX, healthY-4*spacing, healthDimX, healthDimY);
+	}
+		
+		
+}

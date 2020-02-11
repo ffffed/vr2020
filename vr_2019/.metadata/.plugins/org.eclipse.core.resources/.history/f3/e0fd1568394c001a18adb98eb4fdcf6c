@@ -1,0 +1,267 @@
+/* Include s3d symbols */
+#include <Script3d.h>
+#include <Camera.s3d.h>
+#include "warp_player.s3d"
+
+/* Set global scene parameters */
+SET SCENE_FOV  = 60;
+SET SCENE_NEAR = 0.5;
+SET SCENE_FAR  = 1000;
+
+/* Light globals */
+var Light0;
+var PosL = [0, 16.0, 0];	// default light position
+var Light1;
+var PosL1 = [0, 16.0, 37];	// default light position
+var Light2;
+var PosL2 = [88, 16.0, 0];	// default light position
+var Light3;
+var PosL3 = [88, 16, 37];	// default light position
+
+class level
+{
+	var wall_mesh;
+	var wall1_mesh;
+	var box_mesh;
+	var wall_obj_array;
+	var wall1_obj_array;
+	var box_obj_array;
+	var floor_mesh;
+	var wall_material;
+	var wall1_material;
+	var box_material;
+	var wall_texture;
+	var wall1_texture;
+	var box_texture;
+	var floor_material;
+	var floor_texture;
+
+	
+	init(level_textfile);
+	draw();		
+};
+
+
+function level::init(level_textfile)
+{
+	wall_texture = CVmTexture("plant.jpg");
+	wall_material = CVmMaterial();
+	wall_material.SetTexture(wall_texture);
+	wall_material.ChangeTextureParams(VR_V_TILING, 3);
+	
+	wall1_texture = CVmTexture("Mattoni03.png");
+	wall1_material = CVmMaterial();
+	wall1_material.SetTexture(wall1_texture);
+	wall1_material.ChangeTextureParams(VR_V_TILING, 3);
+	
+	box_texture = CVmTexture("ruggine01.jpg");
+	box_material = CVmMaterial();
+	box_material.SetTexture(box_texture);
+	box_material.ChangeTextureParams(VR_V_TILING, 1);
+	
+	wall_obj_array = array(0);
+	wall_mesh = CVmNewMesh(VRP_BOX);
+	wall_mesh.SetMaterial(wall_material);
+	wall_mesh.Scale(1, 3, 1);
+	
+	wall1_obj_array = array(0);
+	wall1_mesh = CVmNewMesh(VRP_BOX);
+	wall1_mesh.SetMaterial(wall1_material);
+	wall1_mesh.Scale(1, 3, 1);
+	
+	box_obj_array = array(0);
+	box_mesh = CVmNewMesh(VRP_BOX);
+	box_mesh.SetMaterial(box_material);
+	box_mesh.Scale(1, 1, 1);
+	//box_mesh.ModulateMaterials(1, 0, 0);
+	var f = LoadFile(level_textfile);
+	trace(f);
+	var num_rows = len(f);
+	var num_columns = len(f[0]);
+	level_matrix = array(num_rows);
+	trace(num_rows,num_columns);
+	// crea la mappa a partire dalla matrice di *
+	for(var i=0; i< num_rows; i++)
+	{
+		level_matrix[i] = array(num_columns);
+		for(var j=0; j< num_columns; j++)
+		{
+			if (f[i][j] == "*")
+			{
+				level_matrix[i][j] = 3;
+				var t = CVmObj(wall_mesh);
+				t.SetPosition(j,0,i);
+				aadd(wall_obj_array,t);
+			}	
+			if (f[i][j] == "#")
+			{
+				level_matrix[i][j] = 3;
+				var t = CVmObj(wall1_mesh);
+				t.SetPosition(j,0,i);
+				aadd(wall1_obj_array,t);
+			}
+			else if (f[i][j] == "@")
+			{
+				level_matrix[i][j] = 1;
+				var t = CVmObj(box_mesh);
+				t.SetPosition(j,0,i);
+				aadd(box_obj_array,t);
+			}
+			
+			else			
+				level_matrix[i][j] = 0;
+			
+		}
+	}
+	
+	floor_material = CVmMaterial();
+	floor_texture  = CVMtexture("ground.jpg");
+	floor_material.SetTexture(floor_texture);
+	floor_material.ChangeTextureParams(VR_U_TILING,4);
+	floor_material.ChangeTextureParams(VR_V_TILING,4);
+	
+	
+	floor_mesh = CVmNewMesh(VRP_BOX);
+	floor_mesh.scale(num_columns,1,num_rows);
+	floor_mesh.translate(0,-1,0);
+	floor_mesh.SetMaterial(floor_material);
+	//floor_mesh.ModulateMaterials(0,1,0,1);	
+}
+
+
+function level::draw()
+{
+	foreach (var t in wall_obj_array)
+		t.Draw();
+	foreach (var t in box_obj_array)
+		t.Draw();
+	floor_mesh.draw();
+}
+
+
+var mylevel;
+
+var myplayer;
+var mystatus;
+
+/* Function declarations */
+function CameraMoveMouse();
+
+function OnDownload()
+{
+	// TODO: download your resources here
+	// E.g.: FileDownload("resource.ext");
+	FileDownload("XVRResources.zip");
+}
+
+
+
+function OnInit(params)
+{
+	
+	/* initialize camera */
+	CameraGetCurrent().SetPosition(CamPos);
+
+	/* initialize light */
+	Light0 = CVmLight();
+	Light0.SetPosition(PosL);
+	Light0.SetDiffuse(1, 1, 1);
+	Light0.Enable();	
+	
+	
+	Light1 = CVmLight();
+	Light1.SetPosition(PosL1);
+	Light1.SetDiffuse(10, 10, 10);
+	Light1.Enable();
+	
+	Light2 = CVmLight();
+	Light2.SetPosition(PosL2);
+	Light2.SetDiffuse(1, 1, 1);
+	Light2.Enable();	
+	
+	
+	Light3 = CVmLight();
+	Light3.SetPosition(PosL3);
+	Light3.SetDiffuse(10, 10, 10);
+	Light3.Enable();
+
+	// TODO: put your initialization code here
+	mylevel = level();
+	mylevel.init("level.txt");
+	
+	
+	myplayer = player();
+	myplayer.init([1, 1, 1]);
+	myplayer.setposition([myPosX, myPosY, myPosZ]);
+	
+	mystatus = status(3);
+	mystatus.init(3);
+}
+
+
+
+
+function OnFrame()
+{ 
+	myplayer.shot_cnt = (myplayer.shot_cnt+1)%min_shot;
+	if (myplayer.has_shot && (myplayer.shot_cnt == 0))
+		myplayer.has_shot = false;
+	/* manage camera */
+	CameraMoveMouse();
+	myplayer.update();
+	mystatus.update(3, myplayer.view);
+	
+	SceneBegin();	
+	mylevel.draw();
+	if (myplayer.view == 0)
+	{
+		myplayer.lower_obj.hide();
+		myplayer.upper_obj.hide();
+	}
+	else
+	{
+		myplayer.lower_obj.unhide();
+		myplayer.upper_obj.unhide();
+	}
+	myplayer.draw();
+	SceneEnd();
+}
+
+
+
+function DownloadReady(RequestID)
+{
+	// TODO
+}
+
+
+
+function OnTimer()
+{
+	// TODO:
+}
+
+
+function OnEvent(eventID, wparam, lparam){
+	// TODO: put your events handling code here
+}
+
+function OnError(){
+	// TODO: put your errors handling code here
+}
+
+
+function OnExit()
+{
+	// TODO: put your cleanup code here
+}
+
+
+
+// Camera manager (using mouse)
+function CameraMoveMouse()
+{	
+
+	CameraMoveMouse_MBL_LC();
+
+}

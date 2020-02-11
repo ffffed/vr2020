@@ -1,0 +1,12 @@
+eclipse.preferences.version=1
+org.xvr.S3D.syntaxColorer.tokenStyles.Main_XVR_function.font=1|Consolas|12.75|0|WINDOWS|1|-13|0|0|0|400|0|0|0|0|3|2|1|49|Consolas;
+org.xvr.S3D.syntaxColorer.tokenStyles.OpenGL_function.font=1|Consolas|12.75|0|WINDOWS|1|-13|0|0|0|400|0|0|0|0|3|2|1|49|Consolas;
+org.xvr.S3D.syntaxColorer.tokenStyles.XVR_function.font=1|Consolas|12.75|0|WINDOWS|1|-13|0|0|0|400|0|0|0|0|3|2|1|49|Consolas;
+org.xvr.S3D.syntaxColorer.tokenStyles.comment.font=1|Consolas|12.75|0|WINDOWS|1|-13|0|0|0|400|0|0|0|0|3|2|1|49|Consolas;
+org.xvr.S3D.syntaxColorer.tokenStyles.default.font=1|Consolas|12.75|0|WINDOWS|1|-13|0|0|0|400|0|0|0|0|3|2|1|49|Consolas;
+org.xvr.S3D.syntaxColorer.tokenStyles.error.font=1|Consolas|12.75|0|WINDOWS|1|-13|0|0|0|400|0|0|0|0|3|2|1|49|Consolas;
+org.xvr.S3D.syntaxColorer.tokenStyles.function.font=1|Consolas|12.75|0|WINDOWS|1|-13|0|0|0|400|0|0|0|0|3|2|1|49|Consolas;
+org.xvr.S3D.syntaxColorer.tokenStyles.keyword.font=1|Consolas|12.75|0|WINDOWS|1|-13|0|0|0|400|0|0|0|0|3|2|1|49|Consolas;
+org.xvr.S3D.syntaxColorer.tokenStyles.number.font=1|Consolas|12.75|0|WINDOWS|1|-13|0|0|0|400|0|0|0|0|3|2|1|49|Consolas;
+org.xvr.S3D.syntaxColorer.tokenStyles.punctuation.font=1|Consolas|12.75|0|WINDOWS|1|-13|0|0|0|400|0|0|0|0|3|2|1|49|Consolas;
+org.xvr.S3D.syntaxColorer.tokenStyles.string.font=1|Consolas|12.75|0|WINDOWS|1|-13|0|0|0|400|0|0|0|0|3|2|1|49|Consolas;

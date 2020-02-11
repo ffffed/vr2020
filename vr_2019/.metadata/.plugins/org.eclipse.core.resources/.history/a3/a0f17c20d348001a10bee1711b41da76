@@ -1,0 +1,35 @@
+#define healthX 0.5
+#define healthY  0.5
+#define healthDimX 0.5
+#define healthDimY 0.5
+#define spacing    10
+
+
+class status
+{
+	var number;
+	
+	init();
+	update();
+	draw(number);
+};
+
+function status::init()
+{
+	number = 3;
+	draw(number);
+}
+
+function status::update()
+{
+	draw(number);
+}
+
+function status::draw(number)
+{
+	if (number == 3)
+	{
+		ConsoleColor(0.0, 1.0, 0.0, 1.0);
+		ConsoleFilledRect(healthX, healthY, healthDimX, healthDimY);	
+	}
+}

@@ -1,0 +1,38 @@
+// Ogni quanti frame posso sparare
+#define min_shot  50
+
+
+class bullet
+{
+	var position;
+	var direction;
+	var speed;
+	var mesh;
+	var obj;
+	init(pos, dir, angle);
+	update();
+	draw();
+};
+
+function bullet::init(pos, dir, angle)
+{
+	position  = pos + [-cos(angle)*0.2, 1, 0];
+	direction = dir;
+	speed = 0.2;
+	mesh = CVMNewMesh(VRP_SPHERE);
+	mesh.Scale(0.05);
+	obj = CVmObj(mesh);
+	obj.SetPosition(position);
+	mesh.ModulateMaterials(0, 0, 0, 1);	
+}
+
+function bullet::update()
+{
+	position += direction*speed;
+	obj.SetPosition(position);
+}
+
+function bullet::draw()
+{
+	obj.draw();
+}
