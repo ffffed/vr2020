@@ -1,6 +1,0 @@
-#Equinox secure storage version 1.0
-#Thu Dec 05 10:29:08 CET 2019
-org.eclipse.equinox.security.preferences.version=1
-username1=\t,
-password1=\t,
-server1=\t,
