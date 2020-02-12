@@ -200,7 +200,6 @@ function player::update()
       if (position.y < 0)
        position.y = j_finalPos;
     }
-      trace (j_finalPos);
   }
   // Forward walk
   if (keypressed("W"))
@@ -267,14 +266,11 @@ function player::update()
    */
    if (keypressed("I"))
   {
-    //trace(position,direction);
     if (!has_shot) 
     {
       my_bullet = bullet();
       my_bullet.init(position, direction);
       aadd(bullet_array, my_bullet);
-      var x = len(bullet_array);
-      trace(x);
       shoot_fx.play();
       has_shot = true;
     }
@@ -429,7 +425,14 @@ function player::collision_check(fl)
     var inside_r = level_matrix[i_r][j_r];
     var inside_ol = level_matrix[i_ol][j_ol];
     var inside_or = level_matrix[i_or][j_or];
-    
+    /* 
+    if ((inside_ol > (j_count+position.y)) && (inside_or > (j_count+position.y)))
+    {
+      position.x = oldposition.x;
+      position.z = oldposition.z;
+      CamPos.x = oldCamPos.x;
+      CamPos.z = oldCamPos.z;
+    }*/
     if ((inside_l > (j_count+position.y)) && (inside_ol > (j_count+position.y)))
     {
       if ( (i_l == i_ol) && (j != j_old))
@@ -457,7 +460,7 @@ function player::collision_check(fl)
         CamPos.x = oldCampos.x;
       }
     }
-    if (inside > (j_count+position.y)) 
+    if (inside > (j_count+position.y))
     {
       position.x = oldposition.x;
       position.z = oldposition.z;

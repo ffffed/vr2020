@@ -1,9 +1,14 @@
-#define healthX 0.08
-#define healthY  0.15
+#define healthX 	0.02
+#define healthY  	0.15
 #define healthDimX 0.1
 #define healthDimY 0.02
 #define spacing    0.02
-
+#define lifex 		0.033
+#define lifey		0.17
+#define ammox		0.16
+#define ammoy		lifey
+#define numammox   0.17
+#define numammoy   0.072
 /* La posizione forse è giusta */
 class status
 {	
@@ -24,9 +29,25 @@ function status::update(number, view)
 
 function status::draw(number, view)
 {
+	//status bar background
+	ConsoleColor(0.0, 0.0, 0.0, 0.6);
+	ConsoleFilledRect(0.0, 0.22, 0.3, 0.22);	
+	//ammo remaining depending on the equipped weapon
+	ConsoleColor(1.0, 0.0, 0.0, 1.0);
+   ConsoleFont("Calibri", 27);
+	ConsoleText(ammox, ammoy, "AMMO:");
+	//if(1 == 1)
+	//{
+		ConsoleColor(1.0, 1.0, 1.0, 1.0);
+   		ConsoleFont("Calibri", 40);
+   		var colpi = 99;
+		ConsoleText(numammox, numammoy, "X"+str(colpi));
+	//}
+	//target (one for first person, the other for third)
 	if (view == 1)
 	{
 		ConsoleColor(1.0, 0.0, 0.0, 1.0);
+		ConsoleFont("Arial", 10);
 		ConsoleText(0.5, 0.8, "o");
 	}
 	else 
@@ -34,9 +55,13 @@ function status::draw(number, view)
 		ConsoleColor(1.0, 0.0, 0.0, 1.0);
 		ConsoleText(0.5, 0.25, "o");
 	}
-	
+	//Status regarding players life
 	if (number == 3)
 	{
+		ConsoleColor(1.0, 0.0, 0.0, 1.0);
+		ConsoleFont("Calibri", 27);
+		ConsoleText(lifex, lifey, "LIFE:");
+		
 		ConsoleColor(0.0, 1.0, 0.0, 1.0);
 		ConsoleFilledRect(healthX, healthY, healthDimX, healthDimY);	
 		ConsoleColor(1.0, 1.0, 0.0, 1.0);
