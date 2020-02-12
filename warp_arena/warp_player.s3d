@@ -61,14 +61,14 @@ class player
   var cam_inside;
   var campos1;
   var oldposition;
-  var oldCamPos;  
+  var oldCamPos;
     
   init(col);
   draw();
   setposition(pos);
   setrotation(angle);
   update();
-  collision_check();
+  collision_check(fl);
 };
 
 function player::init(col)
@@ -224,7 +224,7 @@ function player::update()
       current_frame = SWAT_START_WALK;
     }
     
-    collision_check();
+    collision_check(1);
     
  }
 
@@ -248,7 +248,7 @@ function player::update()
       current_frame = SWAT_END_WALK;
     }
 
-	collision_check();
+	collision_check(0);
   }
   // E for first person, F to go back to third person
   if (keypressed("E"))
@@ -352,34 +352,52 @@ function player::setrotation(angle)
   }
 }
 /******************************************************************************************************************
- *                                        |COLLISION DETECTION|  												  *
+ *                                        |COLLISION DETECTION|                                                   *
  *----------------------------------------------------------------------------------------------------------------*
  * This function was created in order to implement a more efficient collision detection algorithm in warp arena.  * 
  * Our algorithm does not revolve around the use of the bounding box function that can be found in XVR.			  *
  * Every time a player moves his position, we check different directions: the one in front, the ones on the left  *
- * and on the right, and the diagonal ones (front-left and front-right). If we collide only in front, we do 	  *
- * nothing and keep the old position. If we collide in another direction, we restore only the corresponding 	  *
+ * and on the right, and the diagonal ones (front-left and front-right). If we collide only in front, we do       *
+ * nothing and keep the old position. If we collide in another direction, we restore only the corresponding       *
  * component to the one he is not moving in. This was done in order to achieve a sliding effect during gameplay.  *
  ******************************************************************************************************************/
-function player::collision_check()
+function player::collision_check(fl)
 {
+	var i_ol;
+	var i_or;
+	var j_ol;
+	var j_or;
 	var a = angle + (pi/2);
  	var b = angle + (pi/4);
  	var c = angle - (pi/4);
+ 	var d = angle + (3*pi/4);
+ 	var e = angle - (3*pi/4);
+ 	
   	var dirleft = [sin(a), 0, cos(a)];
   	var diroblique_l = [sin(b), 0, cos(b)];
   	var diroblique_r = [sin(c), 0, cos(c)];
+  	var diroblique_bl = [sin(d), 0, cos(d)];
+  	var diroblique_br = [sin(e), 0, cos(e)];
 	// Collision detection DEVO CONTROLLARE ANCHE LE CASELLE ACCANTO AL PLAYER
     pos_l += (dirleft * step * run);
     pos_r -= (dirleft * step * run);
-
+    
+	if (fl == 1)
+	{
     pos_ol += (diroblique_l * step * run);
 	 pos_or += (diroblique_r * step * run);
-    
-    i = int(position.z + direction.z);
+	 i = int(position.z + direction.z);
     j = int(position.x + direction.x);
+	}
+	else
+	{
+    pos_ol += (diroblique_bl * step * run);
+	 pos_or += (diroblique_br * step * run);
+	 i = int(position.z - direction.z);
+    j = int(position.x - direction.x);
+	}
     
-    if (i < 0 )
+    if (i < 0)
       i = 0;
     if (j < 0)
       j = 0;
@@ -389,11 +407,20 @@ function player::collision_check()
     var i_r = (floor(pos_r.z - dirleft.z) < 0) ? 0 : floor(pos_r.z - dirleft.z); 
     var j_r = (floor(pos_r.x - dirleft.x) < 0) ? 0 : floor(pos_r.x - dirleft.x);
     
-    var i_ol = (floor(pos_ol.z + diroblique_l.z) < 0) ? 0 : floor(pos_ol.z + diroblique_l.z); 
-    var j_ol = (floor(pos_ol.x + diroblique_l.x) < 0) ? 0 : floor(pos_ol.x + diroblique_l.x); 
-    var i_or = (floor(pos_or.z + diroblique_r.z) < 0) ? 0 : floor(pos_or.z + diroblique_r.z); 
-    var j_or = (floor(pos_or.x + diroblique_r.x) < 0) ? 0 : floor(pos_or.x + diroblique_r.x);
-    
+    if (fl == 1)
+    {
+    	i_ol = (floor(pos_ol.z + diroblique_l.z) < 0) ? 0 : floor(pos_ol.z + diroblique_l.z); 
+    	j_ol = (floor(pos_ol.x + diroblique_l.x) < 0) ? 0 : floor(pos_ol.x + diroblique_l.x); 
+    	i_or = (floor(pos_or.z + diroblique_r.z) < 0) ? 0 : floor(pos_or.z + diroblique_r.z); 
+    	j_or = (floor(pos_or.x + diroblique_r.x) < 0) ? 0 : floor(pos_or.x + diroblique_r.x);
+    }
+    else
+    {
+    	i_ol = (floor(pos_ol.z + diroblique_bl.z) < 0) ? 0 : floor(pos_ol.z + diroblique_bl.z); 
+    	j_ol = (floor(pos_ol.x + diroblique_bl.x) < 0) ? 0 : floor(pos_ol.x + diroblique_bl.x); 
+    	i_or = (floor(pos_or.z + diroblique_br.z) < 0) ? 0 : floor(pos_or.z + diroblique_br.z); 
+   	 	j_or = (floor(pos_or.x + diroblique_br.x) < 0) ? 0 : floor(pos_or.x + diroblique_br.x);
+    }
     var i_old = int(oldposition.z); 
     var j_old = int(oldposition.x);
     
@@ -403,7 +430,7 @@ function player::collision_check()
     var inside_ol = level_matrix[i_ol][j_ol];
     var inside_or = level_matrix[i_or][j_or];
     
-    if ( (inside_l > (j_count+position.y))  &&  (inside_ol > (j_count+position.y)) )
+    if ((inside_l > (j_count+position.y)) && (inside_ol > (j_count+position.y)))
     {
       if ( (i_l == i_ol) && (j != j_old))
       {
@@ -417,7 +444,7 @@ function player::collision_check()
       }
       
     }
-    if ( (inside_r > (j_count+position.y))   &&   (inside_or > (j_count+position.y)) )
+    if ((inside_r > (j_count+position.y)) && (inside_or > (j_count+position.y)))
     {
       if ( (i_r == i_or) && (i == i_old))
       {
