@@ -12,11 +12,13 @@ SET SCENE_FAR  = 1000;
 var Light0;
 var PosL = [0, 16.0, 0];	// default light position
 var Light1;
-var PosL1 = [0, 16.0, 37];	// default light position
+var PosL1 = [0, 16.0, 43];	// default light position
 var Light2;
-var PosL2 = [88, 16.0, 0];	// default light position
+var PosL2 = [202, 16.0, 0];	// default light position
 var Light3;
-var PosL3 = [88, 16, 37];	// default light position
+var PosL3 = [202, 16, 43];	// default light position
+
+var obstacle_array;
 
 class level
 {
@@ -44,6 +46,9 @@ class level
 
 function level::init(level_textfile)
 {
+	
+	
+	
 	wall_texture = CVmTexture("plant.jpg");
 	wall_material = CVmMaterial();
 	wall_material.SetTexture(wall_texture);
@@ -67,13 +72,12 @@ function level::init(level_textfile)
 	wall1_obj_array = array(0);
 	wall1_mesh = CVmNewMesh(VRP_BOX);
 	wall1_mesh.SetMaterial(wall1_material);
-	wall1_mesh.Scale(1, 3, 1);
+	wall1_mesh.Scale(1, 4, 1);
 	
 	box_obj_array = array(0);
 	box_mesh = CVmNewMesh(VRP_BOX);
 	box_mesh.SetMaterial(box_material);
 	box_mesh.Scale(1, 1, 1);
-	//box_mesh.ModulateMaterials(1, 0, 0);
 	var f = LoadFile(level_textfile);
 	trace(f);
 	var num_rows = len(f);
@@ -89,17 +93,19 @@ function level::init(level_textfile)
 		{
 			if (f[i][j] == "*")
 			{
-				level_matrix[i][j] = 3;
+				level_matrix[i][j] = 4;
 				var t = CVmObj(wall_mesh);
 				t.SetPosition(j,0,i);
 				aadd(wall_obj_array,t);
+				aadd(obstacle_array, t);
 			}	
 			else if (f[i][j] == "#")
 			{
-				level_matrix[i][j] = 4;
+				level_matrix[i][j] = 3;
 				var t = CVmObj(wall1_mesh);
 				t.SetPosition(j,0,i);
 				aadd(wall1_obj_array,t);
+				aadd(obstacle_array, t);
 			}
 			else if (f[i][j] == "@")
 			{
@@ -107,6 +113,7 @@ function level::init(level_textfile)
 				var t = CVmObj(box_mesh);
 				t.SetPosition(j,0,i);
 				aadd(box_obj_array,t);
+				aadd(obstacle_array, t);
 			}
 			else			
 				level_matrix[i][j] = 0;
@@ -159,7 +166,7 @@ function OnDownload()
 
 function OnInit(params)
 {
-	
+	obstacle_array = array(0);
 	/* initialize camera */
 	CameraGetCurrent().SetPosition(CamPos);
 
@@ -192,7 +199,7 @@ function OnInit(params)
 	
 	
 	myplayer = player();
-	myplayer.init([1, 1, 1]);
+	myplayer.init([1, 1, 1], obstacle_array);
 	myplayer.setposition([myPosX, myPosY, myPosZ]);
 	
 	mystatus = status(3);
@@ -204,15 +211,17 @@ function OnInit(params)
 
 function OnFrame()
 { 
+	SceneBegin();
 	myplayer.shot_cnt = (myplayer.shot_cnt+1)%min_shot;
 	if (myplayer.has_shot && (myplayer.shot_cnt == 0))
 		myplayer.has_shot = false;
 	/* manage camera */
 	CameraMoveMouse();
-	myplayer.update();
-	mystatus.update(3, myplayer.view);
 	
-	SceneBegin();	
+	
+	
+	myplayer.update();
+	mystatus.update(3, myplayer.view);	
 	mylevel.draw();
 	if (myplayer.view == 0)
 	{
