@@ -1,6 +1,6 @@
-#define healthX 	0.02
-#define healthY  	0.15
-#define healthDimX 0.1
+#define healthX 	0.0
+#define healthY  	0.02
+#define healthDimX 1
 #define healthDimY 0.02
 #define spacing    0.02
 #define lifex 		0.033
@@ -9,41 +9,78 @@
 #define ammoy		lifey
 #define numammox   0.17
 #define numammoy   0.072
-/* La posizione forse è giusta */
+
 class status
 {	
-	init(number);
-	update(number, view);
-	draw(number, view);
+	var window;
+	var w_size;
+	
+	init();
+	update(view, w_type, n_bullets);
+	draw(view, w_type, n_bullets);
 };
 
-function status::init(number)
+function status::init()
 {
-	draw(number, 1);
+	window = CVmWebBrowser();
+	w_size = window.GetSize();
+	w_size.x /= 1723;
+	w_size.y /= 1043;
+	draw(1, 0, 10);
 }
 
-function status::update(number, view)
+function status::update(view, w_type, n_bullets)
 {
-	draw(number, view);
+	w_size = window.GetSize();
+	w_size.x /= 1723;
+	w_size.y /= 1043;
+	draw(view, w_type, n_bullets);
 }
 
-function status::draw(number, view)
+function status::draw(view, w_type, n_bullets)
 {
 	//status bar background
 	ConsoleColor(0.0, 0.0, 0.0, 0.6);
-	ConsoleFilledRect(0.0, 0.22, 0.3, 0.22);	
+	ConsoleFilledRect(w_size.x * 0.0, w_size.y * 0.1, w_size.x * 0.2, w_size.y * 0.1);
+	switch (w_type)
+	{
+		case 0:
+			ConsoleColor(0.6, 0.0, 0.0, 1.0);
+			ConsoleFilledRect(w_size.x * 0.005, w_size.y * 0.09, w_size.x * 0.188, w_size.y * 0.06);
+			ConsoleColor(1.0, 0.8, 0.1, 1.0);
+   			ConsoleFont("Calibri", sqrt(w_size.x^2 + w_size^2) * 30);
+			ConsoleText(w_size.x * 0.045, w_size.y * 0.043, "GUN: 99");
+			break;
+			
+		case 1:
+			ConsoleColor(0.5, 0.55, 0.4, 1.0);
+			ConsoleFilledRect(w_size.x * 0.005, w_size.y * 0.09, w_size.x * 0.188, w_size.y * 0.06);
+			ConsoleColor(1.0, 0.8, 0.1, 1.0);
+   			ConsoleFont("Calibri", sqrt(w_size.x^2+w_size^2) * 30);
+			ConsoleText(w_size.x * 0.02, w_size.y * 0.043, "RAILGUN: "+str(n_bullets));
+			break;
+	}
+	/*
 	//ammo remaining depending on the equipped weapon
 	ConsoleColor(1.0, 0.0, 0.0, 1.0);
-   ConsoleFont("Calibri", 27);
-	ConsoleText(ammox, ammoy, "AMMO:");
-	//if(1 == 1)
-	//{
-		ConsoleColor(1.0, 1.0, 1.0, 1.0);
-   		ConsoleFont("Calibri", 40);
-   		var colpi = 99;
-		ConsoleText(numammox, numammoy, "X"+str(colpi));
-	//}
-	//target (one for first person, the other for third)
+   ConsoleFont("Calibri", sqrt(w_size.x^2+w_size^2) * 27);
+	ConsoleText(w_size.x * ammox, w_size.y * ammoy, "AMMO:");
+	switch (w_type)
+	{
+		case 0:
+			ConsoleColor(1.0, 1.0, 1.0, 1.0);
+   			ConsoleFont("Calibri", sqrt(w_size.x^2 + w_size^2) * 40);
+			ConsoleText(w_size.x * numammox, w_size.y * numammoy, "X99");
+			break;
+			
+		case 1:
+			ConsoleColor(1.0, 1.0, 1.0, 1.0);
+   			ConsoleFont("Calibri", sqrt(w_size.x^2+w_size^2) * 40);
+			ConsoleText(w_size.x * numammox, w_size.y * numammoy, "X"+str(n_bullets));
+			break;
+	}
+	*/
+	//target (zero for first person, the other for third)
 	if (view == 1)
 	{
 		ConsoleColor(1.0, 0.0, 0.0, 1.0);
@@ -53,20 +90,15 @@ function status::draw(number, view)
 	else 
 	{
 		ConsoleColor(1.0, 0.0, 0.0, 1.0);
+		ConsoleFont("Arial", 10);
 		ConsoleText(0.5, 0.25, "o");
 	}
 	//Status regarding players life
-	if (number == 3)
-	{
-		ConsoleColor(1.0, 0.0, 0.0, 1.0);
-		ConsoleFont("Calibri", 27);
-		ConsoleText(lifex, lifey, "LIFE:");
-		
-		ConsoleColor(0.0, 1.0, 0.0, 1.0);
-		ConsoleFilledRect(healthX, healthY, healthDimX, healthDimY);	
-		ConsoleColor(1.0, 1.0, 0.0, 1.0);
-		ConsoleFilledRect(healthX, healthY-2*spacing, healthDimX, healthDimY);
-		ConsoleColor(1.0, 0.0, 0.0, 1.0);
-		ConsoleFilledRect(healthX, healthY-4*spacing, healthDimX, healthDimY);
-	}	
+	ConsoleColor(0.0, 0.0, 0.0, 0.6);
+	ConsoleFilledRect(healthX, healthY, healthDimX, healthDimY);
+	ConsoleColor(0.6, 0.0, 0.0, 1.0);
+	ConsoleFilledRect(healthX, healthY, healthDimX, healthDimY);
+	ConsoleColor(1.0, 1.0, 1.0, 1.0);
+   	ConsoleFont("Calibri", sqrt(w_size.x^2+w_size^2) * 10);
+	ConsoleText(0.5, 0.005, "L  I  F  E");
 }

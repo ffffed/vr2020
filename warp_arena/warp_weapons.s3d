@@ -1,0 +1,42 @@
+#define railgun  1
+#define rocket   0
+
+
+class weapon
+{
+	var n_bullets;
+	var inuse;
+	var n_bullets_rg;
+	
+	init();
+	update(type);
+	swap(type);
+};
+
+function weapon::init()
+{
+	n_bullets_rg = 10;
+}
+
+function weapon::swap(type)
+{
+	inuse = type;
+}
+
+function weapon::update(type)
+{
+	var ret = false;
+	if(type == railgun)
+	{
+		if(n_bullets_rg > 0)
+		{
+			n_bullets_rg -= 1;
+			ret = true;
+		}
+		else
+			ret = false;
+	}
+	if(type == rocket)
+		ret = true;
+	return ret;
+}

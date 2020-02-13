@@ -8,13 +8,17 @@ class bullet
 	var speed;
 	var mesh;
 	var obj;
-	init(pos, dir);
+	var matrix;
+	var hit_fg;
+	
+	init(pos, dir, lvl_matrix);
 	update();
 	draw();
 };
 
-function bullet::init(pos, dir)
+function bullet::init(pos, dir, lvl_matrix)
 {
+	matrix = lvl_matrix;
 	position  = pos + [0, 1, 0];
 	trace(position, dir);
 
@@ -24,12 +28,20 @@ function bullet::init(pos, dir)
 	mesh.Scale(0.05);
 	obj = CVmObj(mesh);
 	obj.SetPosition(position);
-	mesh.ModulateMaterials(0, 0, 0, 1);	
+	mesh.ModulateMaterials(0, 0, 0, 1);
+	hit_fg = False;
 }
 
 function bullet::update()
 {
 	position += direction*speed;
+	var i = int(position.z);
+   var j = int(position.x);
+   var hit = matrix[i][j];
+   
+	if (hit > position.y)
+		hit_fg = True;
+	else	
 	obj.SetPosition(position);
 }
 
