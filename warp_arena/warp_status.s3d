@@ -48,7 +48,7 @@ function status::draw(view, w_type, n_bullets)
 			ConsoleColor(0.6, 0.0, 0.0, 1.0);
 			ConsoleFilledRect(w_size.x * 0.005, w_size.y * 0.09, w_size.x * 0.188, w_size.y * 0.06);
 			ConsoleColor(1.0, 0.8, 0.1, 1.0);
-   			ConsoleFont("Calibri", sqrt(w_size.x^2 + w_size^2) * 30);
+   			ConsoleFont("Calibri", int(sqrt(w_size.x^2 * w_size.y^2) * 35));
 			ConsoleText(w_size.x * 0.045, w_size.y * 0.043, "GUN: 99");
 			break;
 			
@@ -56,30 +56,15 @@ function status::draw(view, w_type, n_bullets)
 			ConsoleColor(0.5, 0.55, 0.4, 1.0);
 			ConsoleFilledRect(w_size.x * 0.005, w_size.y * 0.09, w_size.x * 0.188, w_size.y * 0.06);
 			ConsoleColor(1.0, 0.8, 0.1, 1.0);
-   			ConsoleFont("Calibri", sqrt(w_size.x^2+w_size^2) * 30);
+   			ConsoleFont("Calibri", int(sqrt(w_size.x^2 * w_size.y^2) * 35));
 			ConsoleText(w_size.x * 0.02, w_size.y * 0.043, "RAILGUN: "+str(n_bullets));
 			break;
-	}
-	/*
-	//ammo remaining depending on the equipped weapon
-	ConsoleColor(1.0, 0.0, 0.0, 1.0);
-   ConsoleFont("Calibri", sqrt(w_size.x^2+w_size^2) * 27);
-	ConsoleText(w_size.x * ammox, w_size.y * ammoy, "AMMO:");
-	switch (w_type)
-	{
-		case 0:
-			ConsoleColor(1.0, 1.0, 1.0, 1.0);
-   			ConsoleFont("Calibri", sqrt(w_size.x^2 + w_size^2) * 40);
-			ConsoleText(w_size.x * numammox, w_size.y * numammoy, "X99");
-			break;
 			
-		case 1:
-			ConsoleColor(1.0, 1.0, 1.0, 1.0);
-   			ConsoleFont("Calibri", sqrt(w_size.x^2+w_size^2) * 40);
-			ConsoleText(w_size.x * numammox, w_size.y * numammoy, "X"+str(n_bullets));
-			break;
+		
 	}
-	*/
+	
+	var t = int (sqrt(w_size.x^2 * w_size.y^2) * 35);
+	trace(t);
 	//target (zero for first person, the other for third)
 	if (view == 1)
 	{
@@ -99,6 +84,6 @@ function status::draw(view, w_type, n_bullets)
 	ConsoleColor(0.6, 0.0, 0.0, 1.0);
 	ConsoleFilledRect(healthX, healthY, healthDimX, healthDimY);
 	ConsoleColor(1.0, 1.0, 1.0, 1.0);
-   	ConsoleFont("Calibri", sqrt(w_size.x^2+w_size^2) * 10);
+   	ConsoleFont("Calibri", sqrt(w_size.x^2+w_size.y^2) * 10);
 	ConsoleText(0.5, 0.005, "L  I  F  E");
 }

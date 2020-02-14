@@ -212,7 +212,7 @@ function player::update()
       position.y -= 0.1;
       oldposition.y -= 0.1;
       if (position.y < 0)
-       position.y = j_finalPos;
+      position.y = j_finalPos;
     }
   }
   // Forward walk
@@ -421,17 +421,17 @@ function player::collision_check(fl)
     
 	if (fl == 1)
 	{
-    pos_ol += (diroblique_l * step * run);
-	 pos_or += (diroblique_r * step * run);
-	 i = int(position.z + direction.z);
-    j = int(position.x + direction.x);
+	 	pos_ol += (diroblique_l * step * run);
+	 	pos_or += (diroblique_r * step * run);
+	 	i = int(position.z + direction.z);
+		j = int(position.x + direction.x);
 	}
 	else
 	{
-    pos_ol += (diroblique_bl * step * run);
-	 pos_or += (diroblique_br * step * run);
-	 i = int(position.z - direction.z);
-    j = int(position.x - direction.x);
+	    pos_ol += (diroblique_bl * step * run);
+		pos_or += (diroblique_br * step * run);
+		i = int(position.z - direction.z);
+	    j = int(position.x - direction.x);
 	}
     
     if (i < 0)
