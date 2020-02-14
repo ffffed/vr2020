@@ -1,3 +1,5 @@
+#include "warp_weapons.s3d"
+
 #define healthX 	0.0
 #define healthY  	0.02
 #define healthDimX 1
@@ -14,14 +16,24 @@ class status
 {	
 	var window;
 	var w_size;
+	var life;
+	var myWeapon;
+	var heal_fg;
+	var curr_life;
 	
 	init();
 	update(view, w_type, n_bullets);
 	draw(view, w_type, n_bullets);
+	recharge(type);
+	heal();
 };
 
 function status::init()
 {
+	life = 0.4;
+	heal_fg = 0;
+	curr_life = life;
+	
 	window = CVmWebBrowser();
 	w_size = window.GetSize();
 	w_size.x /= 1723;
@@ -29,11 +41,13 @@ function status::init()
 	draw(1, 0, 10);
 }
 
+//hit = 0 if the player has not been shot, 0.1 if shot with gun, 0.5 if shot with railgun
 function status::update(view, w_type, n_bullets)
 {
 	w_size = window.GetSize();
 	w_size.x /= 1723;
 	w_size.y /= 1043;
+	heal();
 	draw(view, w_type, n_bullets);
 }
 
@@ -62,9 +76,6 @@ function status::draw(view, w_type, n_bullets)
 			
 		
 	}
-	
-	var t = int (sqrt(w_size.x^2 * w_size.y^2) * 35);
-	trace(t);
 	//target (zero for first person, the other for third)
 	if (view == 1)
 	{
@@ -76,14 +87,37 @@ function status::draw(view, w_type, n_bullets)
 	{
 		ConsoleColor(1.0, 0.0, 0.0, 1.0);
 		ConsoleFont("Arial", 10);
-		ConsoleText(0.5, 0.25, "o");
+		ConsoleText(0.5, 0.55, "o");
 	}
 	//Status regarding players life
 	ConsoleColor(0.0, 0.0, 0.0, 0.6);
 	ConsoleFilledRect(healthX, healthY, healthDimX, healthDimY);
 	ConsoleColor(0.6, 0.0, 0.0, 1.0);
-	ConsoleFilledRect(healthX, healthY, healthDimX, healthDimY);
+	ConsoleFilledRect(healthX, healthY, life, healthDimY);
 	ConsoleColor(1.0, 1.0, 1.0, 1.0);
    	ConsoleFont("Calibri", sqrt(w_size.x^2+w_size.y^2) * 10);
 	ConsoleText(0.5, 0.005, "L  I  F  E");
+}
+
+function status::recharge(type)
+{
+	switch (type)
+	{
+		case 0 :
+			heal_fg = 1;
+			curr_life = life + 0.5;
+			break;
+		
+		case 1 :
+			myWeapon.n_bullets_rg = 10;
+			break;
+	}
+}
+
+function status::heal()
+{
+	if ((heal_fg == 1) && (life < curr_life))
+		life += 0.01;
+	else
+		heal_fg = 0;
 }

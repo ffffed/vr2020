@@ -22,7 +22,6 @@ var PosL3 = [202, 16, 43];	// default light position
 var mylevel;
 
 var myplayer;
-var mystatus;
 
 /* Function declarations */
 function CameraMoveMouse();
@@ -71,9 +70,6 @@ function OnInit(params)
 	myplayer = player();
 	myplayer.init([1, 1, 1], obstacle_array);
 	myplayer.setposition([myPosX, myPosY, myPosZ]);
-	
-	mystatus = status();
-	mystatus.init();
 }
 
 function OnFrame()
@@ -86,7 +82,7 @@ function OnFrame()
 	CameraMoveMouse();
 
 	myplayer.update();
-	mystatus.update(myplayer.view, myplayer.curr_weapon, myplayer.myWeapon.n_bullets_rg);	
+	myplayer.mystatus.update(myplayer.view, myplayer.curr_weapon, myplayer.mystatus.myWeapon.n_bullets_rg);	
 	mylevel.draw();
 	if (myplayer.view == 0)
 	{
@@ -98,7 +94,9 @@ function OnFrame()
 		myplayer.lower_obj.unhide();
 		myplayer.upper_obj.unhide();
 	}
+	
 	myplayer.draw();
+	myplayer.adding_supply();
 	SceneEnd();
 }
 

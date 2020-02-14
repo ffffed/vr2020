@@ -1,0 +1,62 @@
+#include "warp_supply_meshes.s3d" 
+#define sup_life 0
+#define sup_ammo 1
+
+class supplies
+{
+	var posA;
+	var posB;
+	var posC;
+	var posD;
+	var posE;
+	var pos_arr; //position array for random spawn
+	var sup_type;
+	var obj;
+	var mysup_mesh;
+	
+	
+	init();
+	draw_supplies();
+};
+
+function supplies::init()
+{
+	posA = [101, 0, 2];
+	posB = [112, 0, 24];
+	posC = [89, 0, 21];
+	posD = [105, 0, 7];
+	posE = [93, 0, 35];
+	pos_arr = {posA, posB, posC, posD, posE};
+	//supplies = array(0);
+	//start_time = GetTime();
+	mysup_mesh = supply_mesh();
+	mysup_mesh.init();
+	var k = rand(2);
+	if (k == 1)
+	{		
+		
+		
+		obj = CVmObj(mysup_mesh.ammo_mesh);
+		var l = rand(len(pos_arr)-1);
+		obj.SetPosition(pos_arr[l]);
+		sup_type = sup_ammo;
+	}
+	else if (k == 2)
+	{
+		
+		
+		obj = CVmObj(mysup_mesh.life_mesh);
+		var l = rand(len(pos_arr)-1);
+		obj.SetPosition(pos_arr[l]);
+		sup_type = sup_life;
+	}
+	else
+		obj = null;
+}
+
+function supplies::draw_supplies()
+{
+	if (obj != null)
+		obj.draw();
+}
+		

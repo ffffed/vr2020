@@ -1,3 +1,12 @@
+/******************************************************************************************************************
+ *                                           |WARP_LEVEL.S3D|                                                     *
+ *----------------------------------------------------------------------------------------------------------------*
+ * This file inculdes the class that is called in order to setup the level infrastructure of the game. The base	  *
+ * map is found in the level.txt file taht can be found in the XVRResources.zip file. Each structure that can be  *
+ * found in the game has a different character in the .txt map, meaning that we iterate on the rows and columns   *
+ * and create dynamically (but only once) each object.                                                            *
+ ******************************************************************************************************************/
+ 
 var obstacle_array;
 
 class level
@@ -5,23 +14,25 @@ class level
 	var wall_mesh;
 	var wall1_mesh;
 	var box_mesh;
+	var floor_mesh;
+	var sky_mesh;
+	
 	var wall_obj_array;
 	var wall1_obj_array;
 	var box_obj_array;
-	var floor_mesh;
-	var sky_mesh;
-	var sky_texture;
+
 	var wall_material;
 	var wall1_material;
 	var box_material;
+	var floor_material;
+	var sky_material;
+	
 	var wall_texture;
 	var wall1_texture;
 	var box_texture;
-	var floor_material;
-	var sky_material;
 	var floor_texture;
+	var sky_texture;
 
-	
 	init(level_textfile);
 	draw();		
 };
@@ -59,18 +70,18 @@ function level::init(level_textfile)
 	box_mesh.SetMaterial(box_material);
 	box_mesh.Scale(1, 1, 1);
 	var f = LoadFile(level_textfile);
-	trace(f);
 	var num_rows = len(f);
 	var num_columns = len(f[0]);
 	level_matrix = array(num_rows);
 	trace(num_rows,num_columns);
-	// crea la mappa a partire dalla matrice di *
+	//map creation based on the characters found on the level.txt file.
 	for(var i = 0; i < num_rows; i++)
 	{
 		level_matrix[i] = array(num_columns);
 		
 		for(var j = 0; j < num_columns; j++)
 		{
+			//inner walls
 			if (f[i][j] == "*")
 			{
 				level_matrix[i][j] = 5;
@@ -78,7 +89,8 @@ function level::init(level_textfile)
 				t.SetPosition(j,0,i);
 				aadd(wall_obj_array,t);
 				aadd(obstacle_array, t);
-			}	
+			}
+			//outer walls
 			else if (f[i][j] == "#")
 			{
 				level_matrix[i][j] = 5;
@@ -87,6 +99,7 @@ function level::init(level_textfile)
 				aadd(wall1_obj_array,t);
 				aadd(obstacle_array, t);
 			}
+			//heart box
 			else if (f[i][j] == "@")
 			{
 				level_matrix[i][j] = 1;
@@ -95,6 +108,7 @@ function level::init(level_textfile)
 				aadd(box_obj_array,t);
 				aadd(obstacle_array, t);
 			}
+			//two cases one on top the other
 			else if (f[i][j] == "+")
 			{
 				level_matrix[i][j] = 2;
@@ -124,9 +138,6 @@ function level::init(level_textfile)
 	sky_material.ChangeTextureParams(VR_U_TILING,60);
 	sky_material.ChangeTextureParams(VR_V_TILING,30);
 	
-	
-	
-	
 	floor_mesh = CVmNewMesh(VRP_BOX);
 	sky_mesh = CVmNewMesh(VRP_BOX);
 	sky_mesh.scale(num_columns,1,num_rows);
@@ -135,7 +146,6 @@ function level::init(level_textfile)
 	sky_mesh.translate(0,4,0);
 	floor_mesh.SetMaterial(floor_material);
 	sky_mesh.SetMaterial(sky_material);
-	//floor_mesh.ModulateMaterials(0,1,0,1);	
 }
 
 
