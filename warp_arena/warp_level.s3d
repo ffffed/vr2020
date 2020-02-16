@@ -1,7 +1,7 @@
 /******************************************************************************************************************
  *                                           |WARP_LEVEL.S3D|                                                     *
  *----------------------------------------------------------------------------------------------------------------*
- * This file inculdes the class that is called in order to setup the level infrastructure of the game. The base	  *
+ * This file includes the class that is called in order to setup the level infrastructure of the game. The base	  *
  * map is found in the level.txt file taht can be found in the XVRResources.zip file. Each structure that can be  *
  * found in the game has a different character in the .txt map, meaning that we iterate on the rows and columns   *
  * and create dynamically (but only once) each object.                                                            *

@@ -11,6 +11,12 @@
 #define ammoy		lifey
 #define numammox   0.17
 #define numammoy   0.072
+#define mapX			0.7
+#define mapY			1
+#define maxXmap		0.3
+#define maxYmap		0.1954
+#define mapStepY	0.0046
+#define mapStepX	0.00148
 
 class status
 {	
@@ -20,10 +26,18 @@ class status
 	var myWeapon;
 	var heal_fg;
 	var curr_life;
+	var map_matrix;
+	var counter_x;
+	var counter_y;
+	var f;
+	var num_rows;
+	var num_columns;
+	var p_map_x;
+	var p_map_y;
 	
 	init();
-	update(view, w_type, n_bullets);
-	draw(view, w_type, n_bullets);
+	update(position, view, w_type, n_bullets);
+	draw(position, view, w_type, n_bullets);
 	recharge(type);
 	heal();
 };
@@ -33,25 +47,34 @@ function status::init()
 	life = 0.4;
 	heal_fg = 0;
 	curr_life = life;
+	map_matrix = array(0);
+	counter_x = -mapStepX;
+	counter_y = -mapStepy;
+	p_map_x = -mapStepX;
+	p_map_y = -mapStepy;
+	
+	f = LoadFile("level.txt");
+	num_rows = len(f);
+	num_columns = len(f[0]);
 	
 	window = CVmWebBrowser();
 	w_size = window.GetSize();
 	w_size.x /= 1723;
 	w_size.y /= 1043;
-	draw(1, 0, 10);
+	draw([19, 0, 4], 1, 0, 10);
 }
 
 //hit = 0 if the player has not been shot, 0.1 if shot with gun, 0.5 if shot with railgun
-function status::update(view, w_type, n_bullets)
+function status::update(position, view, w_type, n_bullets)
 {
 	w_size = window.GetSize();
 	w_size.x /= 1723;
 	w_size.y /= 1043;
 	heal();
-	draw(view, w_type, n_bullets);
+	draw(position, view, w_type, n_bullets);
 }
 
-function status::draw(view, w_type, n_bullets)
+function status::draw(position, view, w_type, n_bullets)
 {
 	//status bar background
 	ConsoleColor(0.0, 0.0, 0.0, 0.6);
@@ -97,6 +120,51 @@ function status::draw(view, w_type, n_bullets)
 	ConsoleColor(1.0, 1.0, 1.0, 1.0);
    	ConsoleFont("Calibri", sqrt(w_size.x^2+w_size.y^2) * 10);
 	ConsoleText(0.5, 0.005, "L  I  F  E");
+	
+	//The following code is related to the creation of the mini-map that can be found on the
+	//top right corner of the player UI.
+	counter_x = -mapStepX;
+	counter_y = -mapStepy;
+	//map creation based on the characters found on the level.txt file.
+	ConsoleColor(0.0, 0.0, 0.0, 0.6);
+	ConsoleFilledRect(mapX, mapY, maxXmap, maxYmap);
+	for(var i = 0; i < num_rows; i++)
+	{
+		counter_y += mapStepY;
+		counter_x = -mapStepX;
+		for(var j = 0; j < num_columns; j++)
+		{
+			counter_x += mapStepX;
+			//inner walls
+			if (f[i][j] == "*")
+			{
+				ConsoleColor(0.6, 0.0, 0.0, 1.0);
+				ConsoleFilledRect(mapX + counter_x, mapY - counter_y, mapStepX, mapStepY);
+			}
+			//outer walls
+			else if (f[i][j] == "#")
+			{
+				ConsoleColor(0.6, 0.0, 0.0, 1.0);
+				ConsoleFilledRect(mapX + counter_x, mapY - counter_y, mapStepX, mapStepY);
+			}
+			//heart box
+			else if (f[i][j] == "@")
+			{
+				ConsoleColor(0.5, 0.55, 0.4, 1.0);
+				ConsoleFilledRect(mapX + counter_x, mapY - counter_y, mapStepX, mapStepY);
+			}
+			//two cases one on top the other
+			else if (f[i][j] == "+")
+			{
+				ConsoleColor(0.5, 0.55, 0.4, 1.0);
+				ConsoleFilledRect(mapX + counter_x, mapY - counter_y, mapStepX, mapStepY);
+			}
+		}
+	}
+	p_map_x = mapX + mapStepX * int(position.x);
+	p_map_y = mapY - mapStepY * int(position.z);
+	ConsoleColor(01.0, 0.8, 0.1, 1.0);
+	ConsoleFilledRect(p_map_x, p_map_y, mapStepX, mapStepY);
 }
 
 function status::recharge(type)

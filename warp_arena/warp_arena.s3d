@@ -82,7 +82,7 @@ function OnFrame()
 	CameraMoveMouse();
 
 	myplayer.update();
-	myplayer.mystatus.update(myplayer.view, myplayer.curr_weapon, myplayer.mystatus.myWeapon.n_bullets_rg);	
+	myplayer.mystatus.update(myplayer.position, myplayer.view, myplayer.curr_weapon, myplayer.mystatus.myWeapon.n_bullets_rg);	
 	mylevel.draw();
 	if (myplayer.view == 0)
 	{
