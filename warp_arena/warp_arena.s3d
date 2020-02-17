@@ -3,6 +3,13 @@
 #include <Camera.s3d.h>
 #include "warp_player.s3d"
 #include "warp_level.s3d"
+//client/server defines
+#define SERVER_IP 		"192.168.43.133"
+#define SERVER_PORT		50023
+#define CLIENT_PORT		50024
+#define CONNECTION_REQUEST	(0)
+#define CONNECTION_OK			(1)
+#define connection_retry 		500
 
 /* Set global scene parameters */
 SET SCENE_FOV  = 60;
@@ -23,8 +30,16 @@ var mylevel;
 
 var myplayer;
 
+var net_channel;
+var players;
+
 /* Function declarations */
 function CameraMoveMouse();
+
+function mySend(address, port, data)
+{
+	NetVarSendTo(address, port, data);
+}
 
 function OnDownload()
 {
@@ -66,10 +81,36 @@ function OnInit(params)
 	mylevel = level();
 	mylevel.init("level.txt");
 	
+	net_channel = NetCreateChannel(CLIENT_PORT, "0.0.0.0", VR_NO_BLOCKING);
+	players = array(0);
+	
+	var connection_pdu = array(1);
+	connection_pdu[0] = CONNECTION_REQUEST;
+	var rcv = false;
+	
+	var address1 = "................";
+	var lastsend = GetTime();
+	var rcv_data;
+	
+	NetVarSendTo(SERVER_IP, SERVER_PORT, connection_pdu);
+	
+	do
+	{
+		if (GetTime() - lastsend > connection_retry)
+		{
+			NetVarSendTo(SERVER_IP, SERVER_PORT, connection_pdu);
+			lastsend = GetTime();
+		}
+		rcv_data = NetVarReceiveFrom(net_channel, &address1);
+		
+		rcv = (rcv_data != null && rcv_data[0] == CONNECTION_OK) ?
+			true : rcv;
+	} while (rcv == true);
+	trace(rcv_data); 
 	
 	myplayer = player();
-	myplayer.init([1, 1, 1], obstacle_array);
-	myplayer.setposition([myPosX, myPosY, myPosZ]);
+	myplayer.init([1, 1, 1], rcv_data[2]);
+	myplayer.setposition(rcv_data[1]);
 }
 
 function OnFrame()
@@ -124,8 +165,6 @@ function OnExit()
 {
 	// TODO: put your cleanup code here
 }
-
-
 
 // Camera manager (using mouse)
 function CameraMoveMouse()

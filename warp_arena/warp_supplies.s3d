@@ -1,4 +1,3 @@
-#include "warp_supply_meshes.s3d" 
 #define sup_life 0
 #define sup_ammo 1
 
@@ -13,10 +12,16 @@ class supplies
 	var sup_type;
 	var obj;
 	var mysup_mesh;
-	
+	var ammo_txt;
+	var ammo_mtr;
+	var ammo_mesh;
+	var life_txt;
+	var life_mtr;
+	var life_mesh;
 	
 	init();
 	draw_supplies();
+	create_supplies();
 };
 
 function supplies::init()
@@ -27,31 +32,25 @@ function supplies::init()
 	posD = [105, 0, 7];
 	posE = [93, 0, 35];
 	pos_arr = {posA, posB, posC, posD, posE};
+	
+	ammo_txt = CVmTexture("ammo_box.png");
+	ammo_mtr = CVmMaterial();
+	ammo_mtr.SetTexture(ammo_txt);
+	ammo_mtr.ChangeTextureParams(VR_V_TILING, 1);
+	ammo_mesh = CVmNewMesh(VRP_BOX);
+	ammo_mesh.SetMaterial(ammo_mtr);
+	ammo_mesh.Scale(1, 0.5, 1);
+	
+	life_txt = CVmTexture("scotch.png");
+	life_mtr = CVmMaterial();
+	life_mtr.SetTexture(life_txt);
+	life_mtr.ChangeTextureParams(VR_V_TILING, 1);
+	life_mesh = CVmNewMesh(VRP_BOX);
+	life_mesh.SetMaterial(life_mtr);
+	life_mesh.Scale(1, 0.5, 1);
+	
 	//supplies = array(0);
 	//start_time = GetTime();
-	mysup_mesh = supply_mesh();
-	mysup_mesh.init();
-	var k = rand(2);
-	if (k == 1)
-	{		
-		
-		
-		obj = CVmObj(mysup_mesh.ammo_mesh);
-		var l = rand(len(pos_arr)-1);
-		obj.SetPosition(pos_arr[l]);
-		sup_type = sup_ammo;
-	}
-	else if (k == 2)
-	{
-		
-		
-		obj = CVmObj(mysup_mesh.life_mesh);
-		var l = rand(len(pos_arr)-1);
-		obj.SetPosition(pos_arr[l]);
-		sup_type = sup_life;
-	}
-	else
-		obj = null;
 }
 
 function supplies::draw_supplies()
@@ -60,3 +59,21 @@ function supplies::draw_supplies()
 		obj.draw();
 }
 		
+function supplies::create_supplies()
+{
+	var k = rand(2);
+	if (k == 1)
+	{
+		obj = CVmObj(ammo_mesh);
+		var l = rand(len(pos_arr)-1);
+		obj.SetPosition(pos_arr[l]);
+		sup_type = sup_ammo;
+	}
+	else if (k == 2)
+	{
+		obj = CVmObj(life_mesh);
+		var l = rand(len(pos_arr)-1);
+		obj.SetPosition(pos_arr[l]);
+		sup_type = sup_life;
+	}
+}

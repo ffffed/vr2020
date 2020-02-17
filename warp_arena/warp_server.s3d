@@ -1,0 +1,139 @@
+#include <Script3d.h>
+#include "warp_player.s3d"
+
+#define SERVER_PORT 50023
+#define CLIENT_PORT 50024
+
+#define CONNECTION_REQUEST	(0)
+#define CONNECTION_OK			(1)
+
+var net_channel;
+var my_ip;
+var players;
+var players_id;
+var num_rows;
+var num_columns;
+
+var id;
+var last_send;
+var map;
+
+function OnDownload()
+{
+	// TODO: download your resources here
+	// E.g.: FileDownload("resource.ext");
+	FileDownload("XVRResources.zip");
+}
+
+function OnInit()
+{
+	net_channel = NetCreateChannel(SERVER_PORT, "0.0.0.0", VR_NO_BLOCKING);
+	
+	players = array(0);
+	players_id = array(0);
+	id = 0;
+	
+	var f = LoadFile("level.txt");
+	num_rows = len(f);
+	num_columns = len(f[0]);
+	map = array(num_rows);
+	//map creation based on the characters found on the level.txt file.
+	for(var i = 0; i < num_rows; i++)
+	{
+		map[i] = array(num_columns);
+		
+		for(var j = 0; j < num_columns; j++)
+		{
+			//inner walls
+			if (f[i][j] == "*")
+				map[i][j] = 5;
+			//outer walls
+			else if (f[i][j] == "#")
+				map[i][j] = 5;
+			//heart box
+			else if (f[i][j] == "@")
+				map[i][j] = 1;
+			//two cases one on top the other
+			else if (f[i][j] == "+")
+				map[i][j] = 2;
+			else			
+				map[i][j] = 0;
+		}
+	}
+	
+	last_send = 0;
+	
+	my_ip = NetGetIP();
+	
+	SetTimeStep(1);
+}
+
+function player_spawn()
+{
+	var rand_row;
+	var rand_col;
+	var pdu;
+	var pos;
+	
+	pdu = array(3);
+	
+	pdu[0] = CONNECTION_OK;
+	/*
+	do
+	{
+	rand_row = rand(num_rows - 1);
+	rand_col = rand(num_columns - 1);
+	var c = map[rand_row][rand_col];
+	trace(c);
+	} while (map[rand_row][rand_col] == 0);
+	*/
+	rand_row = rand(9);
+	rand_row += 12;
+	rand_col = rand(9);
+	rand_col += 18;
+	pos = [rand_row, 0, rand_col];
+	pdu[1] = pos;
+	
+	id += 1;
+	
+	pdu[2] = id;
+
+	return pdu;
+}
+
+function mySend(address, port, data)
+{
+	NetVarSendTo(address, port, data);
+}
+
+function OnTimer()
+{
+	var curr_time = GetTime();
+	var address1 = "................";
+	var received_data = NetVarReceiveFrom(net_channel, &address1);
+	if (received_data != null)
+	{
+		if (received_data[0] == CONNECTION_REQUEST)
+		{
+			var ack = player_spawn();
+			mySend(address1, CLIENT_PORT, ack);
+			trace(ack);
+			
+		}
+	}
+}
+
+function OnFrame()
+{
+	
+}
+
+function OnEvent()
+{
+	
+}
+
+function OnError()
+{
+	
+}
