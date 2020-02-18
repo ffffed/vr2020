@@ -1,0 +1,77 @@
+//Frames used for the players movement
+#define ENEMY_START_WALK	16
+#define ENEMY_END_WALK		48
+
+class enemy
+{
+	//mesh related variables
+	var upper_mesh;
+	var lower_mesh;
+	var weapon_mesh;
+	var weapon_mesh0;
+	var weapon_mesh1;
+	
+	//object related variables
+	var lower_obj;
+	var upper_obj;
+	var weapon_obj;
+	var obj;
+	
+	var position; //current position of the player on the map
+	var oldposition;
+	var direction; //direction in which the player has to move in
+
+	var step; //players speed
+	var frame_step;
+	var current_frame;
+	var run; //set to 2 from pressing shift key to run
+	
+	var curr_weapon;
+	var shoot_fx;
+	var step_fx;
+	var id; //unique id given by the server
+	
+	init(init_pos, init_dir, init_id);
+	draw_enemy();
+};
+
+function enemy::init(init_pos, init_dir, init_id)
+{
+	position = init_pos;
+	direction = init_dir;
+	id = init_id;
+	step = 0.1;
+	frame_step = 1.0;
+	current_frame = ENEMY_START_WALK;
+	run = 1;
+	shoot_fx = CVmVRAWAV("shoot.wav");
+	step_fx  = CVmVRAWAV("step.wav");
+	
+	lower_mesh = CVmNewMesh("swat_lower.aam");
+	var sf1 = lower_mesh.normalize(1);
+	upper_mesh = CVmNewMesh("swat_upper.aam");
+	upper_mesh.scale(sf1);
+	weapon_mesh0 = CVMNewMesh("rocketl.aam");
+	weapon_mesh0.scale(sf1);
+	weapon_mesh1 = CVMNewMesh("railgun.aam");
+	weapon_mesh1.scale(sf1);
+	
+	lower_obj = CVmObj(lower_mesh);
+	upper_obj = CVmObj(upper_mesh);
+	weapon_obj = CVmObj(weapon_mesh0);
+	
+	obj = CVmObj();
+	obj.addchild(upper_obj);
+	obj.addchild(lower_obj);
+	obj.addchild(weapon_obj);
+  
+	obj.ModulateMaterials([1, 1, 1]);
+	
+	obj.setPosition(position);
+	obj.setDirection(direction);
+}
+
+function enemy::draw_enemy()
+{
+	obj.draw();
+}

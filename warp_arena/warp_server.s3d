@@ -2,15 +2,17 @@
 #include "warp_player.s3d"
 
 #define SERVER_PORT 50023
-#define CLIENT_PORT 50024
+#define CLIENT_PORT 50025
 
 #define CONNECTION_REQUEST	(0)
 #define CONNECTION_OK			(1)
+#define POSITION_PDU			(2)
+#define NEW_PLAYER				(3)
 
 var net_channel;
 var my_ip;
 var players;
-var players_id;
+var players_ip;
 var num_rows;
 var num_columns;
 
@@ -30,36 +32,8 @@ function OnInit()
 	net_channel = NetCreateChannel(SERVER_PORT, "0.0.0.0", VR_NO_BLOCKING);
 	
 	players = array(0);
-	players_id = array(0);
+	players_ip = array(0);
 	id = 0;
-	
-	var f = LoadFile("level.txt");
-	num_rows = len(f);
-	num_columns = len(f[0]);
-	map = array(num_rows);
-	//map creation based on the characters found on the level.txt file.
-	for(var i = 0; i < num_rows; i++)
-	{
-		map[i] = array(num_columns);
-		
-		for(var j = 0; j < num_columns; j++)
-		{
-			//inner walls
-			if (f[i][j] == "*")
-				map[i][j] = 5;
-			//outer walls
-			else if (f[i][j] == "#")
-				map[i][j] = 5;
-			//heart box
-			else if (f[i][j] == "@")
-				map[i][j] = 1;
-			//two cases one on top the other
-			else if (f[i][j] == "+")
-				map[i][j] = 2;
-			else			
-				map[i][j] = 0;
-		}
-	}
 	
 	last_send = 0;
 	
@@ -78,15 +52,7 @@ function player_spawn()
 	pdu = array(3);
 	
 	pdu[0] = CONNECTION_OK;
-	/*
-	do
-	{
-	rand_row = rand(num_rows - 1);
-	rand_col = rand(num_columns - 1);
-	var c = map[rand_row][rand_col];
-	trace(c);
-	} while (map[rand_row][rand_col] == 0);
-	*/
+	
 	rand_row = rand(9);
 	rand_row += 12;
 	rand_col = rand(9);
@@ -119,6 +85,27 @@ function OnTimer()
 			mySend(address1, CLIENT_PORT, ack);
 			trace(ack);
 			
+			var new_ip = array(2);
+			new_ip[0] = ack[2];
+			new_ip[1] = address1;
+			aadd(new_ip, players_ip);
+			
+			//id, position, direction
+			var player = array(3);
+			player[0] = ack[2];
+			player[1] = ack[1];
+			player[2] = [0, 0, 1];
+			aadd(player, players);
+			
+			foreach (var t in players_ip)
+			{
+				if (ack[2] != t[0])
+					mySend(t[1], CLIENT_PORT, player);
+			}
+		}
+		else if (received_data[0] == POSITION_PDU)
+		{
+			trace(received_data);
 		}
 	}
 }

@@ -3,12 +3,15 @@
 #include <Camera.s3d.h>
 #include "warp_player.s3d"
 #include "warp_level.s3d"
+#include "warp_enemy.s3d"
 //client/server defines
 #define SERVER_IP 		"192.168.43.133"
 #define SERVER_PORT		50023
-#define CLIENT_PORT		50024
+#define CLIENT_PORT		50025
 #define CONNECTION_REQUEST	(0)
 #define CONNECTION_OK			(1)
+#define POSITION_PDU			(2)
+#define NEW_PLAYER				(3)
 #define connection_retry 		500
 
 /* Set global scene parameters */
@@ -27,11 +30,17 @@ var Light3;
 var PosL3 = [202, 16, 43];	// default light position
 
 var mylevel;
-
+var myenemy;
 var myplayer;
 
 var net_channel;
 var players;
+var old_pos; //old position to check
+var position; //new position to check
+var old_dir; //old direction to check
+var direction; //new direction to check
+
+var address1;
 
 /* Function declarations */
 function CameraMoveMouse();
@@ -88,7 +97,7 @@ function OnInit(params)
 	connection_pdu[0] = CONNECTION_REQUEST;
 	var rcv = false;
 	
-	var address1 = "................";
+	address1 = "................";
 	var lastsend = GetTime();
 	var rcv_data;
 	
@@ -102,15 +111,23 @@ function OnInit(params)
 			lastsend = GetTime();
 		}
 		rcv_data = NetVarReceiveFrom(net_channel, &address1);
+		trace(rcv_data);
 		
 		rcv = (rcv_data != null && rcv_data[0] == CONNECTION_OK) ?
 			true : rcv;
+		trace(rcv);
 	} while (rcv == true);
-	trace(rcv_data); 
+	
+	old_pos = rcv_data[1];
+	position = rcv_data[1];
+	old_dir = [0, 0, 1];
+	direction = [0, 0, 1];
 	
 	myplayer = player();
 	myplayer.init([1, 1, 1], rcv_data[2]);
 	myplayer.setposition(rcv_data[1]);
+	
+	SetTimeStep(1);
 }
 
 function OnFrame()
@@ -123,6 +140,19 @@ function OnFrame()
 	CameraMoveMouse();
 
 	myplayer.update();
+	position = myplayer.position;
+	direction = myplayer.direction;
+	if ( (old_pos != position) || (old_dir != direction) )
+	{
+		var pos_pdu = array(4);
+		pos_pdu[0] = POSITION_PDU;
+		pos_pdu[1] = position;
+		pos_pdu[2] = direction;
+		pos_pdu[3] = myplayer.id;
+		mySend(SERVER_IP, SERVER_PORT, pos_pdu);
+	}
+	old_pos = position;
+	old_dir = direction;
 	myplayer.mystatus.update(myplayer.position, myplayer.view, myplayer.curr_weapon, myplayer.mystatus.myWeapon.n_bullets_rg);	
 	mylevel.draw();
 	if (myplayer.view == 0)
@@ -137,6 +167,8 @@ function OnFrame()
 	}
 	
 	myplayer.draw();
+	foreach (var t in players)
+		t.draw_enemy();
 	myplayer.adding_supply();
 	SceneEnd();
 }
@@ -148,7 +180,17 @@ function DownloadReady(RequestID)
 
 function OnTimer()
 {
-	// TODO:
+	var received_data = NetVarReceiveFrom(net_channel, &address1);
+	if (received_data != null)
+	{
+		if (received_data[0] == NEW_PLAYER)
+		{
+			myenemy = enemy();
+			myenemy.init(received_data[1], received_data[2], received_data[0]);
+			aadd(myenemy, players);
+		}
+	}
+
 }
 
 

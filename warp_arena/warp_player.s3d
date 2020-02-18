@@ -14,10 +14,6 @@
 //Frames used for the players movement
 #define SWAT_START_WALK	16
 #define SWAT_END_WALK		48
-//Player spawning position on the map
-#define myPosX	19
-#define myPosY	0
-#define myPosZ	4
 //distance between the player and camera
 #define distance	2
 #define altitude	1.7
@@ -122,7 +118,7 @@ function player::init(col, my_id)
 	j_down = 0;
 	j_count = 0;
 	curr_weapon = 0;
-	my_id = id;
+	id = my_id;
 	leftang = angle + pi/2;
   
 	lower_mesh = CVmNewMesh("swat_lower.aam");
