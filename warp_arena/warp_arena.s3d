@@ -37,8 +37,8 @@ var net_channel;
 var players;
 var old_pos; //old position to check
 var position; //new position to check
-var old_dir; //old direction to check
-var direction; //new direction to check
+var old_angle; //old direction to check
+var angle; //new direction to check
 
 var address1;
 
@@ -120,8 +120,8 @@ function OnInit(params)
 	
 	old_pos = rcv_data[1];
 	position = rcv_data[1];
-	old_dir = [0, 0, 1];
-	direction = [0, 0, 1];
+	old_angle = 0;
+	angle = 0;
 	
 	myplayer = player();
 	myplayer.init([1, 1, 1], rcv_data[2]);
@@ -141,18 +141,18 @@ function OnFrame()
 
 	myplayer.update();
 	position = myplayer.position;
-	direction = myplayer.direction;
-	if ( (old_pos != position) || (old_dir != direction) )
+	angle = myplayer.angle;
+	if ( (old_pos != position) || (old_angle != angle) )
 	{
 		var pos_pdu = array(4);
 		pos_pdu[0] = POSITION_PDU;
 		pos_pdu[1] = position;
-		pos_pdu[2] = direction;
+		pos_pdu[2] = angle;
 		pos_pdu[3] = myplayer.id;
 		mySend(SERVER_IP, SERVER_PORT, pos_pdu);
 	}
 	old_pos = position;
-	old_dir = direction;
+	old_angle = angle;
 	myplayer.mystatus.update(myplayer.position, myplayer.view, myplayer.curr_weapon, myplayer.mystatus.myWeapon.n_bullets_rg);	
 	mylevel.draw();
 	if (myplayer.view == 0)
@@ -167,8 +167,11 @@ function OnFrame()
 	}
 	
 	myplayer.draw();
+	var f = len(players);
+	
 	foreach (var t in players)
 		t.draw_enemy();
+		
 	myplayer.adding_supply();
 	SceneEnd();
 }
@@ -185,12 +188,12 @@ function OnTimer()
 	{
 		if (received_data[0] == NEW_PLAYER)
 		{
+			trace(received_data);
 			myenemy = enemy();
-			myenemy.init(received_data[1], received_data[2], received_data[0]);
-			aadd(myenemy, players);
+			myenemy.init(received_data[2], received_data[3], received_data[1]);
+			aadd(players, myenemy);
 		}
 	}
-
 }
 
 

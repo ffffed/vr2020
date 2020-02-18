@@ -19,7 +19,7 @@ class enemy
 	
 	var position; //current position of the player on the map
 	var oldposition;
-	var direction; //direction in which the player has to move in
+	var angle; //direction in which the player has to move in
 
 	var step; //players speed
 	var frame_step;
@@ -31,14 +31,14 @@ class enemy
 	var step_fx;
 	var id; //unique id given by the server
 	
-	init(init_pos, init_dir, init_id);
+	init(init_pos, init_angle, init_id);
 	draw_enemy();
 };
 
-function enemy::init(init_pos, init_dir, init_id)
+function enemy::init(init_pos, init_angle, init_id)
 {
 	position = init_pos;
-	direction = init_dir;
+	angle = init_angle;
 	id = init_id;
 	step = 0.1;
 	frame_step = 1.0;
@@ -68,7 +68,7 @@ function enemy::init(init_pos, init_dir, init_id)
 	obj.ModulateMaterials([1, 1, 1]);
 	
 	obj.setPosition(position);
-	obj.setDirection(direction);
+	obj.setRotation(angle*180/pi);
 }
 
 function enemy::draw_enemy()

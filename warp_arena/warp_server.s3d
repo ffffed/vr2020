@@ -88,24 +88,23 @@ function OnTimer()
 			var new_ip = array(2);
 			new_ip[0] = ack[2];
 			new_ip[1] = address1;
-			aadd(new_ip, players_ip);
+			aadd(players_ip, new_ip);
 			
 			//id, position, direction
-			var player = array(3);
-			player[0] = ack[2];
-			player[1] = ack[1];
-			player[2] = [0, 0, 1];
-			aadd(player, players);
+			var player = array(4);
+			player[0] = NEW_PLAYER;
+			player[1] = ack[2];
+			player[2] = ack[1];
+			player[3] = 0;
+			aadd(players, player);
 			
 			foreach (var t in players_ip)
-			{
 				if (ack[2] != t[0])
 					mySend(t[1], CLIENT_PORT, player);
-			}
 		}
 		else if (received_data[0] == POSITION_PDU)
 		{
-			trace(received_data);
+			//trace(received_data);
 		}
 	}
 }
