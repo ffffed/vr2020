@@ -5,10 +5,10 @@
 #include "warp_level.s3d"
 #include "warp_enemy.s3d"
 //client/server defines
-#define SERVER_IP 		"192.168.43.133"
+#define SERVER_IP 		"192.168.43.130"
 #define SERVER_PORT		50023
 #define CLIENT_PORT		50025
-#define CONNECTION_REQUEST	(0)
+#define CONNECTION_REQUEST		(0)
 #define CONNECTION_OK			(1)
 #define POSITION_PDU			(2)
 #define NEW_PLAYER				(3)

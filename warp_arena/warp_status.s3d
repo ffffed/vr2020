@@ -97,6 +97,14 @@ function status::draw(position, view, w_type, n_bullets)
 			ConsoleText(w_size.x * 0.02, w_size.y * 0.043, "RAILGUN: "+str(n_bullets));
 			break;
 			
+		case 2 :
+			ConsoleColor(0.2, 0.2, 1, 1.0);
+			ConsoleFilledRect(w_size.x * 0.005, w_size.y * 0.09, w_size.x * 0.188, w_size.y * 0.06);
+			ConsoleColor(1.0, 0.8, 0.1, 1.0);
+   			ConsoleFont("Calibri", int(sqrt(w_size.x^2 * w_size.y^2) * 35));
+			ConsoleText(w_size.x * 0.045, w_size.y * 0.043, "WARP-GUN: --");
+			break;
+			
 		
 	}
 	//target (zero for first person, the other for third)

@@ -10,13 +10,14 @@ class bullet
 	var obj;
 	var matrix;
 	var hit_fg;
+	var damage;
 	
-	init(pos, dir, lvl_matrix);
+	init(pos, dir, lvl_matrix, type);
 	update();
 	draw();
 };
 
-function bullet::init(pos, dir, lvl_matrix)
+function bullet::init(pos, dir, lvl_matrix, type)
 {
 	matrix = lvl_matrix;
 	position  = pos + [0, 1, 0];
@@ -24,11 +25,35 @@ function bullet::init(pos, dir, lvl_matrix)
 
 	direction = dir;
 	speed = 0.5;
-	mesh = CVMNewMesh(VRP_SPHERE);
-	mesh.Scale(0.05);
-	obj = CVmObj(mesh);
-	obj.SetPosition(position);
-	mesh.ModulateMaterials(0, 0, 0, 1);
+	if (type == 0)
+	{
+		mesh = CVMNewMesh(VRP_SPHERE);
+		mesh.Scale(0.05);	
+		damage = 1;
+		obj = CVmObj(mesh);
+		obj.SetPosition(position);
+		mesh.ModulateMaterials(0, 0, 0, 1);
+	}
+	else if (type == 1)
+	{
+		mesh = CVMNewMesh(VRP_SPHERE);
+		mesh.Scale(0.01);	
+		damage = 5;
+		obj = CVmObj(mesh);
+		obj.SetPosition(position);
+		mesh.ModulateMaterials(0, 0, 0, 1);
+	}
+	else if (type == 2)
+	{
+		mesh = CVMNewMesh(VRP_SPHERE);
+		mesh.Scale(0.1);	
+		damage = 0;
+		obj = CVmObj(mesh);
+		obj.SetPosition(position);
+		mesh.ModulateMaterials(0, 0, 0.4, 1);
+	}
+	
+	
 	hit_fg = False;
 }
 
@@ -36,8 +61,8 @@ function bullet::update()
 {
 	position += direction*speed;
 	var i = int(position.z);
-   var j = int(position.x);
-   var hit = matrix[i][j];
+  	var j = int(position.x);
+   	var hit = matrix[i][j];
    
 	if (hit > position.y)
 		hit_fg = True;
@@ -47,5 +72,6 @@ function bullet::update()
 
 function bullet::draw()
 {
+	
 	obj.draw();
 }

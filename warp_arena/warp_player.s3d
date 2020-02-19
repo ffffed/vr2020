@@ -36,11 +36,16 @@ class player
 	var weapon_mesh;
 	var weapon_mesh0;
 	var weapon_mesh1;
+	var weapon_mesh2;
+	var portal_mesh;
+	
 	
 	//object related variables
 	var lower_obj;
 	var upper_obj;
 	var weapon_obj;
+	var portal1_obj;
+	var portal2_obj;
 	var obj;
 	
 	//class initialization variables
@@ -71,7 +76,8 @@ class player
 	var frame_step;
 	var current_frame;
 	var run; //set to 2 from pressing shift key to run
-
+	var portal1;
+	var portal2;
 	//flags and other variables
 	var angle; //initial players direction
 	var leftang;
@@ -98,6 +104,7 @@ class player
 	update();
 	collision_check(fl, ang); //checks for collision
 	adding_supply(); //called when the player collects a supply
+	finding_orientation(pos);
 };
 
 function player::init(col, my_id)
@@ -129,10 +136,19 @@ function player::init(col, my_id)
 	weapon_mesh0.scale(sf1);
 	weapon_mesh1 = CVMNewMesh("railgun.aam");
 	weapon_mesh1.scale(sf1);
+	weapon_mesh2 = CVMNewMesh("rocketl.aam");
+	weapon_mesh2.scale(sf1);
+	weapon_mesh2.ModulateMaterials(0.48,0.2,1,1);
+	portal_mesh = CVMNewMesh(VRP_BOX);
+	portal_mesh.ModulateMaterials(0.0,0.0,1,1);
+	portal_mesh.scale(1,1,1);
 	
 	lower_obj = CVmObj(lower_mesh);
 	upper_obj = CVmObj(upper_mesh);
 	weapon_obj = CVmObj(weapon_mesh0);
+	portal1_obj = CVmObj(portal_mesh);
+	portal2_obj = CVmObj(portal_mesh);
+	
 	
 	obj = CVmObj();
 	obj.addchild(upper_obj);
@@ -156,6 +172,10 @@ function player::init(col, my_id)
 	frame_step = 1.0;
 	current_frame = SWAT_START_WALK;
 	run = 1;
+	portal1 = array(2); // Hit e direzione
+	portal2 = array(2);
+	portal1[0] = 0; // No Hit
+	portal2[0] = 0;
   
 	shoot_fx = CVmVRAWAV("shoot.wav");
 	step_fx  = CVmVRAWAV("step.wav");
@@ -367,7 +387,7 @@ function player::update()
 			if (check == true)
 			{
 				my_bullet = bullet();
-				my_bullet.init(position, direction, level_matrix);
+				my_bullet.init(position, direction, level_matrix, curr_weapon);
 				aadd(bullet_array, my_bullet);
 				shoot_fx.play();
 				has_shot = true;
@@ -391,6 +411,15 @@ function player::update()
 		weapon_obj = CVmObj(weapon_mesh1);
 		obj.addchild(weapon_obj);
 		curr_weapon = 1;
+		mystatus.myWeapon.swap(curr_weapon);
+	}
+	
+	if (keypressed("L"))
+	{ 
+		obj.RemoveChild(weapon_obj);
+		weapon_obj = CVmObj(weapon_mesh2);
+		obj.addchild(weapon_obj);
+		curr_weapon = 2;
 		mystatus.myWeapon.swap(curr_weapon);
 	}
 
@@ -423,9 +452,53 @@ function player::draw()
 	for(var k = 0; k < len(bullet_array); k++)
 	{
 		if (bullet_array[k].hit_fg == true)
+		{
+			if(bullet_array[k].damage == 0) // warp
+			{
+			  var p;
+			  if (portal1[0] == 0)
+			  {
+			  	p = [int(bullet_array[k].position.x), 1, int(bullet_array[k].position.z)];
+			  	portal1_obj.setposition(p);
+			  	portal1[1] = -(bullet_array[k].direction);
+			  	portal1[0] = 1;
+			  }
+			  else 
+			  {
+			  	if (portal2[0] == 0)
+				  {
+				  	p = [int(bullet_array[k].position.x), 1, int(bullet_array[k].position.z)];
+				  	portal2_obj.setposition(p);
+				  	portal2[1] = -(bullet_array[k].direction);
+				  	portal2[0] = 1;
+				  }
+				  else
+				  { 
+				  	p = [int(portal2_obj.getPosition().x), 1, int(portal2_obj.getPosition().z)];
+				  	portal1[1] = portal2[1];
+			  		portal1_obj.setposition(p);
+			  		portal1[0] = 1;
+					p = [int(bullet_array[k].position.x), 1, int(bullet_array[k].position.z)];			  		portal2_obj.setposition(p);
+				  	portal2[1] = -(bullet_array[k].direction);
+				  	portal2[0] = 1;
+				  	
+				  }		  
+			  }  
+			} 
 			adel(bullet_array, k);
+		}
 		else
 			bullet_array[k].draw();
+	}
+	
+	if (portal1[0] == 1)
+	{  
+	    portal1_obj.draw();
+	}
+	if (portal2[0] == 1)
+	{
+	    portal2_obj.draw();
+
 	}
 	
 	for (var i = 0; i < len(arr_supplies); i++)
@@ -628,4 +701,42 @@ function player::adding_supply()
 		if (mysupplies.obj != null)
 			aadd(arr_supplies, mysupplies);
 	}
+}
+
+/* Attualmente non funziona */
+
+function player::finding_orientation(pos)
+{   var ret;
+	/* Z verticale -> 1, X orizzontale -> 1*/
+	var pos_xp = pos + [1,0,0];
+	var pos_xm = pos - [1,0,0];
+	var pos_zp = pos + [0,0,1];
+	var pos_zm = pos - [0,0,1];
+	var i_l = (floor(pos_xp.z) < 0) ? 0 : floor(pos_xp.z); 
+	var j_l = (floor(pos_xp.x) < 0) ? 0 : floor(pos_xp.x); 
+	var i_r = (floor(pos_xm.z) < 0) ? 0 : floor(pos_xm.z); 
+	var j_r = (floor(pos_xm.x) < 0) ? 0 : floor(pos_xm.x); 
+	var i_u = (floor(pos_zp.z) < 0) ? 0 : floor(pos_zp.z); 
+	var j_u = (floor(pos_zp.x) < 0) ? 0 : floor(pos_zp.x); 
+	var i_d = (floor(pos_zm.z) < 0) ? 0 : floor(pos_zm.z); 
+	var j_d = (floor(pos_zm.x) < 0) ? 0 : floor(pos_zm.x); 
+	var pos_l = level_matrix[i_l][j_l];
+	var pos_r = level_matrix[i_r][j_r];
+	var pos_u = level_matrix[i_u][j_u];
+	var pos_d = level_matrix[i_d][j_d];
+	var t;
+	if ((pos_l > 0) && (pos_r > 0))
+	{
+		t = "orizz";
+		trace(t);
+		ret = 0;
+	}
+	if ((pos_u > 0) && (pos_d > 0))
+	{   t= "vert";
+		trace(t);
+		ret = 1;
+	}
+		
+		
+	return ret;
 }
