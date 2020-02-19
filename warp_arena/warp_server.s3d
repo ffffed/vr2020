@@ -8,6 +8,10 @@
 #define CONNECTION_OK			(1)
 #define POSITION_PDU			(2)
 #define NEW_PLAYER				(3)
+#define OLD_PLAYERS				(4)
+#define PLAYER_EXIT				(5)
+#define EXIT_NOTIFICATION		(6)
+#define CHANGE_WEAPON			(7)
 
 var net_channel;
 var my_ip;
@@ -19,6 +23,7 @@ var num_columns;
 var id;
 var last_send;
 var map;
+var address1;
 
 function OnDownload()
 {
@@ -30,7 +35,8 @@ function OnDownload()
 function OnInit()
 {
 	net_channel = NetCreateChannel(SERVER_PORT, "0.0.0.0", VR_NO_BLOCKING);
-	
+	var address1 = "................";
+
 	players = array(0);
 	players_ip = array(0);
 	id = 0;
@@ -72,10 +78,18 @@ function mySend(address, port, data)
 	NetVarSendTo(address, port, data);
 }
 
+function delete_player(exit_id)
+{
+	var exit_pdu = array(2);
+	exit_pdu[0] = EXIT_NOTIFICATION;
+	exit_pdu[1] = exit_id;
+	foreach (var t in players_ip)
+		mySend(t[1], CLIENT_PORT, exit_pdu);
+}
+
 function OnTimer()
 {
 	var curr_time = GetTime();
-	var address1 = "................";
 	var received_data = NetVarReceiveFrom(net_channel, &address1);
 	if (received_data != null)
 	{
@@ -84,11 +98,19 @@ function OnTimer()
 			var ack = player_spawn();
 			mySend(address1, CLIENT_PORT, ack);
 			trace(ack);
-			
+
 			var new_ip = array(2);
 			new_ip[0] = ack[2];
 			new_ip[1] = address1;
-			aadd(players_ip, new_ip);
+			aadd(players_ip, new_ip);	
+
+			if (len(players) > 0)
+			{
+				var old_players_arr = array(2);
+				old_players_arr[0] = OLD_PLAYERS;
+				old_players_arr[1] = players;
+				mySend(address1, CLIENT_PORT, old_players_arr);
+			}
 			
 			//id, position, direction
 			var player = array(4);
@@ -104,7 +126,29 @@ function OnTimer()
 		}
 		else if (received_data[0] == POSITION_PDU)
 		{
-			//trace(received_data);
+			foreach (var t in players_ip)
+				if (received_data[3] != t[0])
+					mySend(t[1], CLIENT_PORT, received_data);
+		}
+		else if (received_data[0] == CHANGE_WEAPON)
+		{
+			foreach (var t in players_ip)
+				if (received_data[1] != t[0])
+					mySend(t[1], CLIENT_PORT, received_data);
+		}
+		else if (received_data[0] == PLAYER_EXIT)
+		{
+			var exit_id = received_data[1];
+			for (var t = 0; t < len(players); t++)
+			{
+				var g = players[t][1];
+				if (players[t][1] == exit_id)
+				{
+					adel(players, t);
+					adel(players_ip, t);
+					delete_player(exit_id);
+				}
+			}
 		}
 	}
 }
@@ -120,6 +164,15 @@ function OnEvent()
 }
 
 function OnError()
+{
+	
+}
+
+function OnExit()
+{
+	
+}
+function DownloadReady()
 {
 	
 }

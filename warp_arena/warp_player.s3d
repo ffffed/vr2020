@@ -138,7 +138,7 @@ function player::init(col, my_id)
 	weapon_mesh1.scale(sf1);
 	weapon_mesh2 = CVMNewMesh("rocketl.aam");
 	weapon_mesh2.scale(sf1);
-	weapon_mesh2.ModulateMaterials(0.48,0.2,1,1);
+	weapon_mesh2.ModulateMaterials(0, 0, 1, 1);
 	portal_mesh = CVMNewMesh(VRP_BOX);
 	portal_mesh.ModulateMaterials(0.0,0.0,1,1);
 	portal_mesh.scale(1,1,1);
@@ -402,7 +402,6 @@ function player::update()
 		obj.addchild(weapon_obj);
 		curr_weapon = 0;
 		mystatus.myWeapon.swap(curr_weapon);
-
 	}
 		
 	if (keypressed("K"))

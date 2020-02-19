@@ -10,6 +10,7 @@ class enemy
 	var weapon_mesh;
 	var weapon_mesh0;
 	var weapon_mesh1;
+	var weapon_mesh2;
 	
 	//object related variables
 	var lower_obj;
@@ -33,6 +34,7 @@ class enemy
 	
 	init(init_pos, init_angle, init_id);
 	draw_enemy();
+	switch_weapon(w);
 };
 
 function enemy::init(init_pos, init_angle, init_id)
@@ -46,6 +48,7 @@ function enemy::init(init_pos, init_angle, init_id)
 	run = 1;
 	shoot_fx = CVmVRAWAV("shoot.wav");
 	step_fx  = CVmVRAWAV("step.wav");
+	curr_weapon = 0;
 	
 	lower_mesh = CVmNewMesh("swat_lower.aam");
 	var sf1 = lower_mesh.normalize(1);
@@ -55,6 +58,9 @@ function enemy::init(init_pos, init_angle, init_id)
 	weapon_mesh0.scale(sf1);
 	weapon_mesh1 = CVMNewMesh("railgun.aam");
 	weapon_mesh1.scale(sf1);
+	weapon_mesh2 = CVMNewMesh("rocketl.aam");
+	weapon_mesh2.scale(sf1);
+	weapon_mesh2.ModulateMaterials(0, 0, 1, 1);
 	
 	lower_obj = CVmObj(lower_mesh);
 	upper_obj = CVmObj(upper_mesh);
@@ -69,9 +75,35 @@ function enemy::init(init_pos, init_angle, init_id)
 	
 	obj.setPosition(position);
 	obj.setRotation(angle*180/pi);
+	current_frame = ENEMY_START_WALK;
 }
 
 function enemy::draw_enemy()
 {
-	obj.draw();
+	obj.draw(VR_FRAME_NUMBER, current_frame);
+}
+
+function enemy::switch_weapon(w)
+{
+	switch (w)
+	{
+		case 0:
+			obj.RemoveChild(weapon_obj);
+			weapon_obj = CVmObj(weapon_mesh0);
+			obj.addchild(weapon_obj);
+			curr_weapon = 0;
+			break;
+		case 1:
+			obj.RemoveChild(weapon_obj);
+			weapon_obj = CVmObj(weapon_mesh1);
+			obj.addchild(weapon_obj);
+			curr_weapon = 1;
+			break;
+		case 2:
+			obj.RemoveChild(weapon_obj);
+			weapon_obj = CVmObj(weapon_mesh2);
+			obj.addchild(weapon_obj);
+			curr_weapon = 2;
+			break;
+	}
 }
