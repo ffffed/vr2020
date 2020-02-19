@@ -195,15 +195,20 @@ function player::init(col, my_id)
  *     -> Shift: used as toggle, keep pressed to run;                                                             *
  *     -> A: used to turn the avatar to his left. This key changes only the angle, it does not let him move;      *
  *     -> D: used to turn the avatar to his right. This key changes only the angle, it does not let him move;     *
- *     -> Space Bar: lets the avatar jump. This can be also used to climb on objects that have y coordinate that   *
+ *     -> Space Bar: lets the avatar jump. This can be also used to climb on objects that have y coordinate that  *
  *               is less that the maximum height of the jump;                                                     *
  *     -> W: used to make the avatar walk forward;                                                                *
  *     -> S: used to make the avatar walk backwards;                                                              *
- *     -> R: positions the camera in first person view;													                  *
+ *     -> R: positions the camera in first person view;                                                           *
  *     -> F: positions the camera in third person view;                                                           *
  *     -> I: shoots with the currently equipped weapon;                                                           *	
  *     -> J: toggles the normal gun as active weapon;                                                             *
- *     -> K: toggles the rocket laucher as active weapon.		                                                     *
+ *     -> K: toggles the rocket laucher as active weapon;                                                         *
+ *     -> L: toggles the PORTAL_GUN as equipped weapon. The fun start here ;)                                     *
+ *     -> Q: lets the player move laterally to his left, without changing his vieweing angle. It can be combined  *
+ *               with the W key to move both forward and left;                                                    *
+ *     -> E: lets the player move laterally to his right, without changing his vieweing angle. It can be combined *
+ *               with the W key to move both forward and right;                                                   *
  ******************************************************************************************************************/
 function player::update()
 {   
@@ -477,7 +482,8 @@ function player::draw()
 				  	portal1[1] = portal2[1];
 			  		portal1_obj.setposition(p);
 			  		portal1[0] = 1;
-					p = [int(bullet_array[k].position.x), 1, int(bullet_array[k].position.z)];			  		portal2_obj.setposition(p);
+					p = [int(bullet_array[k].position.x), 1, int(bullet_array[k].position.z)];			  		
+					portal2_obj.setposition(p);
 				  	portal2[1] = -(bullet_array[k].direction);
 				  	portal2[0] = 1;
 				  	
@@ -580,10 +586,10 @@ function player::collision_check(fl, ang)
 	var j_ol;
 	var j_or;
 	var a = ang + (pi/2); //left hand of the avatar
-   var b = ang + (pi/4); //front left hand of the avatar
-   var c = ang - (pi/4); //front right hand of the avatar
-   var d = ang + (3*pi/4); //back left hand of the avatar
-   var e = ang - (3*pi/4); //back right hand of the avatar
+	var b = ang + (pi/4); //front left hand of the avatar
+	var c = ang - (pi/4); //front right hand of the avatar
+	var d = ang + (3*pi/4); //back left hand of the avatar
+	var e = ang - (3*pi/4); //back right hand of the avatar
    
 	var dirfront = [sin(ang), 0, cos(ang)]; // Posizione verso il quale mi muovo
 	var dirleft = [sin(a), 0, cos(a)];

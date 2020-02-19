@@ -1,10 +1,51 @@
+/******************************************************************************************************************
+ *                                           |WARP_SERVER.S3D|                                                    *
+ *----------------------------------------------------------------------------------------------------------------*
+ * This file contains the server that is the main node of the communication between players. It's IP address is   *
+ * known to every client that wants to enter a game. On his initialization function, the first thing it does is   *
+ * the creation of a channel by which he communicates with the clients.                                           *
+ * By setting a timer at 1ms, the server then checks weather a new PDU has arrived from a player, and acts        *
+ * accordingly.                                                                                                   *
+ ******************************************************************************************************************/
+
 #include <Script3d.h>
 #include "warp_player.s3d"
 
 #define SERVER_PORT 50023
 #define CLIENT_PORT 50025
 
-#define CONNECTION_REQUEST	(0)
+/****************************************************
+ *                     |PDUs|                       *
+ *--------------------------------------------------*
+ *                                                  *
+ * CONNECTION_REQUEST: sent by a player that wants  *
+ * to join a game.                                  *
+ *                                                  *
+ * CONNECTION_OK: sent by the serve once the request*
+ * is accepted.                                     *
+ *                                                  *
+ * POSITION_PDU: sent by a player once it changes   *
+ * his ange or his position. It is entirely sent to *
+ * each other player in the game.                   *
+ *                                                  *
+ * NEW_PLAYER: sent by the server to all players to *
+ * notificate a new player has entered the arena.   *
+ *                                                  *
+ * OLD_PLAYERS: once a player has entered a game,   *
+ * the server informs him about the players that are*
+ * already playing.                                 *
+ *                                                  *
+ * PLAYER_EXIT: used by a player to notificate he is*
+ * quitting the game.                               *
+ *                                                  *
+ * EXIT_NOTIFICATION: used by the server to inform  *
+ * all players that another one has left the game.  *
+ *                                                  *
+ * CHANGE_WEAPON: sent by a client once he changes  *
+ * weapon. It is sent as it is from the server to   *
+ * all clients.                                     *
+ ****************************************************/
+#define CONNECTION_REQUEST		(0)
 #define CONNECTION_OK			(1)
 #define POSITION_PDU			(2)
 #define NEW_PLAYER				(3)
@@ -14,21 +55,17 @@
 #define CHANGE_WEAPON			(7)
 
 var net_channel;
-var my_ip;
+// PLAYER_ARRAY = [NEW_PLAYER, player_id, position, angle]
 var players;
+// PLAYER_IP = [player_id, player_ip_addr]
 var players_ip;
-var num_rows;
-var num_columns;
 
+// incremental ID to assign to a player once he requests a connection.
 var id;
-var last_send;
-var map;
 var address1;
 
 function OnDownload()
 {
-	// TODO: download your resources here
-	// E.g.: FileDownload("resource.ext");
 	FileDownload("XVRResources.zip");
 }
 
@@ -41,12 +78,23 @@ function OnInit()
 	players_ip = array(0);
 	id = 0;
 	
-	last_send = 0;
-	
-	my_ip = NetGetIP();
-	
 	SetTimeStep(1);
 }
+
+/****************************************************
+ *                |PLAYER_SPAWN|                    *
+ *--------------------------------------------------*
+ * Function called once a player requests to enter  *
+ * the arena. It creates a PDU that is then sent to *
+ * him. It will be like:                            *
+ *                                                  *
+ * PDU[0] = CONNECTION_OK;                          *
+ * PDU[1] = position to start the game;             *
+ * PDU[2] = unique id to use;                       *
+ *                                                  *
+ * The position is generated randomly in a certain  *
+ * area of the map.                                 *
+ ****************************************************/
 
 function player_spawn()
 {
@@ -72,11 +120,22 @@ function player_spawn()
 
 	return pdu;
 }
-
+//Function only used to send to clients.
 function mySend(address, port, data)
 {
 	NetVarSendTo(address, port, data);
 }
+
+/****************************************************
+ *                 |DELETE_PLAYER|                  *
+ *--------------------------------------------------*
+ * Creates a PDU that notifies every player that a  *
+ * certaing player has left the game. It will be    *
+ * like:                                            *
+ *                                                  *
+ * PDU[0] = EXIT_NOTIFICATION;                      *
+ * PDU[1] = id of the player that leaves.           *
+ ****************************************************/
 
 function delete_player(exit_id)
 {
@@ -87,68 +146,101 @@ function delete_player(exit_id)
 		mySend(t[1], CLIENT_PORT, exit_pdu);
 }
 
+/****************************************************
+ *                    |OnTimer|                     *
+ *--------------------------------------------------*
+ * Called every 1ms, checks weather there are       *
+ * messages sent by clients and acts accordingly:   *
+ *                                                  *
+ * CONNECTION_REQUEST: means that a client want to  *
+ * access the arena. The server will therefore send *
+ * a message back to him with his position, id and  *
+ * angle. The it will add a new entry in the array  *
+ * containing the IDs and IPs of each player, and do*
+ * the same thing for the players array. Before this*
+ * last instruction it will send to the new client a*
+ * message with the list of all the players now in  *
+ * game and their position, in order to draw them.  *
+ *                                                  *
+ * CHANGE_WEAPON: a player has changed his weapon,  *
+ * therefore sends this information to everyone     *
+ * else.                                            *
+ *                                                  *
+ * PLAYER_EXIT: a player left the game, therefore   *
+ * he is deleted from all the lists and the message *
+ * is sent to all other players, in order to update *
+ * their own structure.                             *
+ ****************************************************/
+
 function OnTimer()
 {
 	var curr_time = GetTime();
 	var received_data = NetVarReceiveFrom(net_channel, &address1);
 	if (received_data != null)
 	{
-		if (received_data[0] == CONNECTION_REQUEST)
+		switch (received_data[0])
 		{
-			var ack = player_spawn();
-			mySend(address1, CLIENT_PORT, ack);
-			trace(ack);
-
-			var new_ip = array(2);
-			new_ip[0] = ack[2];
-			new_ip[1] = address1;
-			aadd(players_ip, new_ip);	
-
-			if (len(players) > 0)
-			{
-				var old_players_arr = array(2);
-				old_players_arr[0] = OLD_PLAYERS;
-				old_players_arr[1] = players;
-				mySend(address1, CLIENT_PORT, old_players_arr);
-			}
+			case CONNECTION_REQUEST :
 			
-			//id, position, direction
-			var player = array(4);
-			player[0] = NEW_PLAYER;
-			player[1] = ack[2];
-			player[2] = ack[1];
-			player[3] = 0;
-			aadd(players, player);
-			
-			foreach (var t in players_ip)
-				if (ack[2] != t[0])
-					mySend(t[1], CLIENT_PORT, player);
-		}
-		else if (received_data[0] == POSITION_PDU)
-		{
-			foreach (var t in players_ip)
-				if (received_data[3] != t[0])
-					mySend(t[1], CLIENT_PORT, received_data);
-		}
-		else if (received_data[0] == CHANGE_WEAPON)
-		{
-			foreach (var t in players_ip)
-				if (received_data[1] != t[0])
-					mySend(t[1], CLIENT_PORT, received_data);
-		}
-		else if (received_data[0] == PLAYER_EXIT)
-		{
-			var exit_id = received_data[1];
-			for (var t = 0; t < len(players); t++)
-			{
-				var g = players[t][1];
-				if (players[t][1] == exit_id)
+				var ack = player_spawn();
+				mySend(address1, CLIENT_PORT, ack);
+				trace(ack);
+
+				var new_ip = array(2);
+				new_ip[0] = ack[2];
+				new_ip[1] = address1;
+				aadd(players_ip, new_ip);	
+
+				if (len(players) > 0)
 				{
-					adel(players, t);
-					adel(players_ip, t);
-					delete_player(exit_id);
+					var old_players_arr = array(2);
+					old_players_arr[0] = OLD_PLAYERS;
+					old_players_arr[1] = players;
+					mySend(address1, CLIENT_PORT, old_players_arr);
 				}
-			}
+			
+				var player = array(4);
+				player[0] = NEW_PLAYER;
+				player[1] = ack[2];
+				player[2] = ack[1];
+				player[3] = 0;
+				aadd(players, player);
+			
+				foreach (var t in players_ip)
+					if (ack[2] != t[0])
+						mySend(t[1], CLIENT_PORT, player);
+						
+				else if (received_data[0] == POSITION_PDU)
+				{
+					foreach (var t in players_ip)
+						if (received_data[3] != t[0])
+							mySend(t[1], CLIENT_PORT, received_data);
+				}
+				
+				break;
+				
+			case CHANGE_WEAPON :
+			
+				foreach (var t in players_ip)
+					if (received_data[1] != t[0])
+						mySend(t[1], CLIENT_PORT, received_data);
+				
+				break;
+
+			case PLAYER_EXIT :
+			
+				var exit_id = received_data[1];
+				for (var t = 0; t < len(players); t++)
+				{
+					var g = players[t][1];
+					if (players[t][1] == exit_id)
+					{
+						adel(players, t);
+						adel(players_ip, t);
+						delete_player(exit_id);
+					}
+				}
+				break;
 		}
 	}
 }

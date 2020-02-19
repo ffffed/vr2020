@@ -1,3 +1,18 @@
+/******************************************************************************************************************
+ *                                           |WARP_ARENA.S3D|                                                     *
+ *----------------------------------------------------------------------------------------------------------------*
+ * This is the arena file, and more in depth it is used to initialize the players arena, structures and acts as   *
+ * client for his connection with the server. The OnInit initializes the lighting of the scene, then creates the  *
+ * level by instantiating a warp_level class, and lastly asks the server for a game addition, then creating a     *
+ * player with the information returned by the server.                                                            *
+ * At each frame it then starts by setting the new position of the player, and then checking weather the new      *
+ * position changed from the last one, and in positive case it sends a PDU to the server in order to notificate   *
+ * the other players, and does the same with the angle and the weapon. It then draws the player, but firs it      *
+ * checks weather he is in first person.                                                                          *
+ * The OnTimer function is used to keep track of messages from the server, in order to change the position, the   *
+ * weapon or other graphical effects of the players, as well as deleting him in case of need.                     *
+ ******************************************************************************************************************/
+
 /* Include s3d symbols */
 #include <Script3d.h>
 #include <Camera.s3d.h>
@@ -8,7 +23,39 @@
 #define SERVER_IP 		"192.168.43.133"
 #define SERVER_PORT		50023
 #define CLIENT_PORT		50025
-#define CONNECTION_REQUEST	(0)
+
+/****************************************************
+ *                     |PDUs|                       *
+ *--------------------------------------------------*
+ *                                                  *
+ * CONNECTION_REQUEST: sent by a player that wants  *
+ * to join a game.                                  *
+ *                                                  *
+ * CONNECTION_OK: sent by the serve once the request*
+ * is accepted.                                     *
+ *                                                  *
+ * POSITION_PDU: sent by a player once it changes   *
+ * his ange or his position. It is entirely sent to *
+ * each other player in the game.                   *
+ *                                                  *
+ * NEW_PLAYER: sent by the server to all players to *
+ * notificate a new player has entered the arena.   *
+ *                                                  *
+ * OLD_PLAYERS: once a player has entered a game,   *
+ * the server informs him about the players that are*
+ * already playing.                                 *
+ *                                                  *
+ * PLAYER_EXIT: used by a player to notificate he is*
+ * quitting the game.                               *
+ *                                                  *
+ * EXIT_NOTIFICATION: used by the server to inform  *
+ * all players that another one has left the game.  *
+ *                                                  *
+ * CHANGE_WEAPON: sent by a client once he changes  *
+ * weapon. It is sent as it is from the server to   *
+ * all clients.                                     *
+ ****************************************************/
+#define CONNECTION_REQUEST		(0)
 #define CONNECTION_OK			(1)
 #define POSITION_PDU			(2)
 #define NEW_PLAYER				(3)
@@ -47,6 +94,7 @@ var angle; //new direction to check
 var old_weapon; //used to check weather the weapon has changed
 
 var address1;
+var arr;
 
 /* Function declarations */
 function CameraMoveMouse();
@@ -150,6 +198,9 @@ function OnFrame()
 	myplayer.update();
 	position = myplayer.position;
 	angle = myplayer.angle;
+	
+	//I changed my position from the last one this function was called.
+	//I must notificate the server of this change.
 	if ( (old_pos != position) || (old_angle != angle) )
 	{
 		var pos_pdu = array(5);
@@ -160,6 +211,9 @@ function OnFrame()
 		pos_pdu[4] = myplayer.current_frame;
 		mySend(SERVER_IP, SERVER_PORT, pos_pdu);
 	}
+	
+	//I changed my weapon from the last time this function was called.
+	//I must notificate the server of this change.
 	if (old_weapon != myplayer.curr_weapon)
 	{
 		old_weapon = myplayer.curr_weapon;
@@ -173,13 +227,17 @@ function OnFrame()
 	
 	old_pos = position;
 	old_angle = angle;
+	
 	myplayer.mystatus.update(myplayer.position, myplayer.view, myplayer.curr_weapon, myplayer.mystatus.myWeapon.n_bullets_rg);	
 	mylevel.draw();
+	
+	//If I move my camera to first person, I'll hide the character and draw only the weapon.
 	if (myplayer.view == 0)
 	{
 		myplayer.lower_obj.hide();
 		myplayer.upper_obj.hide();
 	}
+	//If I go bakc to third person I will draw by avatar again.
 	else
 	{
 		myplayer.lower_obj.unhide();
@@ -191,7 +249,7 @@ function OnFrame()
 	
 	foreach (var t in players)
 		t.draw_enemy();
-		
+
 	myplayer.adding_supply();
 	SceneEnd();
 }
@@ -201,55 +259,86 @@ function DownloadReady(RequestID)
 	// TODO
 }
 
+/****************************************************
+ *                    |OnTimer|                     *
+ *--------------------------------------------------*
+ * Called every 1ms, checks weather there are       *
+ * messages sent by clients and acts accordingly:   *
+ *                                                  *
+ * NEW_PLAYER: a new player has entered the arena,  *
+ * therefore i must add him to the structure        *
+ * containing all of them, and then create an enemy *
+ * object to draw on the map.                       *
+ *                                                  *
+ * EXIT_NOTIFICATION: a player has left the arena,  *
+ * therefore we must find him in the structure and  *
+ * remove him.                                      *
+ *                                                  *
+ * OLD_PLAYERS: sento to me from the server when I  *
+ * join a game. It is a list of all the current     *
+ * players in the arena, letting me start with them.*
+ *                                                  *
+ * POSITION_PDU: a PDU notifying me that a certain  *
+ * player has moved his position or his angle. I    *
+ * therefore set his position, his rotation and his *
+ * current frame to correctly draw him.             *
+ *                                                  *
+ * CHANGE_WEAPON: notifyes me that a player changed *
+ * his weapon, in order to correctly draw him.      *
+ ****************************************************/
+
 function OnTimer()
 {
 	var received_data = NetVarReceiveFrom(net_channel, &address1);
 	if (received_data != null)
 	{
-		if (received_data[0] == NEW_PLAYER)
+		switch (received_data[0])
 		{
-			trace(received_data);
-			myenemy = enemy();
-			myenemy.init(received_data[2], received_data[3], received_data[1]);
-			aadd(players, myenemy);
-		}
-		else if (received_data[0] == EXIT_NOTIFICATION)
-		{
-			for (var t = 0; t < len(players); t++)
-			{
-				if (players[t].id == received_data[1])
-					adel(players, t);
-			}
-		}
-		else if (received_data[0] == OLD_PLAYERS)
-		{
-			var arr = received_data[1];
-			foreach (var t in arr)
-			{
+			case NEW_PLAYER :
+			
+				trace(received_data);
 				myenemy = enemy();
-				myenemy.init(t[2], t[3], t[1]);
-				aadd(players, myenemy);				
-			}
-		}
-		else if (received_data[0] == POSITION_PDU)
-		{
-			for (var k = 0; k < len(players); k++)
-			{
-				if (received_data[3] == players[k].id)
+				myenemy.init(received_data[2], received_data[3], received_data[1]);
+				aadd(players, myenemy);
+				break;
+			
+	 		case EXIT_NOTIFICATION :
+	 		
+				for (var t = 0; t < len(players); t++)
+					if (players[t].id == received_data[1])
+						adel(players, t);
+				break;
+				
+			case OLD_PLAYERS :
+			
+				arr = received_data[1];
+				foreach (var t in received_data[1])
 				{
-					players[k].obj.setPosition(received_data[1]);
-					players[k].obj.setRotation(received_data[2]*180/pi, 0, 1, 0);
-					players[k].current_frame = received_data[4];
+					myenemy = enemy();
+					myenemy.init(t[2], t[3], t[1]);
+					aadd(players, myenemy);				
 				}
-			}
-		}
-		else if (received_data[0] == CHANGE_WEAPON)
-		{
-			for (var k = 0; k < len(players); k++)
-			{
-				if (received_data[1] == players[k].id)
-					players[k].switch_weapon(received_data[2]);
-			}	
+				break;
+
+			case POSITION_PDU :
+			
+				for (var k = 0; k < len(players); k++)
+				{
+					if (received_data[3] == players[k].id)
+					{
+						players[k].obj.setPosition(received_data[1]);
+						players[k].obj.setRotation(received_data[2]*180/pi, 0, 1, 0);
+						players[k].current_frame = received_data[4];
+					}
+				}
+				break;
+
+			case CHANGE_WEAPON :
+			
+				for (var k = 0; k < len(players); k++)
+					if (received_data[1] == players[k].id)
+						players[k].switch_weapon(received_data[2]);
+				break;
 		}
 	}
 }
