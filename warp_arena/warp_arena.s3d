@@ -19,6 +19,7 @@
 #include "warp_player.s3d"
 #include "warp_level.s3d"
 #include "warp_enemy.s3d"
+#include "warp_supplies.s3d"
 //client/server defines
 #define SERVER_IP 		"192.168.43.133"
 #define SERVER_PORT		50023
@@ -63,6 +64,8 @@
 #define PLAYER_EXIT				(5)
 #define EXIT_NOTIFICATION		(6)
 #define CHANGE_WEAPON			(7)
+#define NEW_AMMO				(8)
+#define COLLECTED_AMMO			(9)
 
 #define connection_retry 		500
 
@@ -84,6 +87,9 @@ var PosL3 = [202, 16, 43];	// default light position
 var mylevel;
 var myenemy;
 var myplayer;
+var mysupply;
+var mybox;
+var arr_supplies;
 
 var net_channel;
 var players;
@@ -149,6 +155,9 @@ function OnInit(params)
 	
 	old_weapon = 0;
 	
+	mysupply = supplies();
+	mysupply.init();
+	
 	var connection_pdu = array(1);
 	connection_pdu[0] = CONNECTION_REQUEST;
 	var rcv = false;
@@ -178,6 +187,8 @@ function OnInit(params)
 	position = rcv_data[1];
 	old_angle = 0;
 	angle = 0;
+	
+	arr_supplies = array(0);
 	
 	myplayer = player();
 	myplayer.init([1, 1, 1], rcv_data[2]);
@@ -210,6 +221,21 @@ function OnFrame()
 		pos_pdu[3] = myplayer.id;
 		pos_pdu[4] = myplayer.current_frame;
 		mySend(SERVER_IP, SERVER_PORT, pos_pdu);
+		
+		for (var t = 0; t < len(arr_supplies); t++)
+		{
+			if ( (int(position.x) == arr_supplies[t].obj.getPosition().x) &&
+				(int(position.z) == arr_supplies[t].obj.getPosition().z) )
+			{
+				var ammo_pdu = array(3);
+				ammo_pdu[0] = COLLECTED_AMMO;
+				ammo_pdu[1] = myplayer.id;
+				ammo_pdu[2] = t;
+				mySend(SERVER_IP, SERVER_PORT, ammo_pdu);
+				myplayer.mystatus.recharge(arr_supplies[t].type);
+				adel(arr_supplies, t);
+			}
+		}
 	}
 	
 	//I changed my weapon from the last time this function was called.
@@ -249,8 +275,10 @@ function OnFrame()
 	
 	foreach (var t in players)
 		t.draw_enemy();
-
-	myplayer.adding_supply();
+		
+	foreach (var t in arr_supplies)
+		t.draw_box();
+		
 	SceneEnd();
 }
 
@@ -295,7 +323,6 @@ function OnTimer()
 		switch (received_data[0])
 		{
 			case NEW_PLAYER :
-			
 				trace(received_data);
 				myenemy = enemy();
 				myenemy.init(received_data[2], received_data[3], received_data[1]);
@@ -303,25 +330,23 @@ function OnTimer()
 				break;
 			
 	 		case EXIT_NOTIFICATION :
-	 		
-				for (var t = 0; t < len(players); t++)
+	 			for (var t = 0; t < len(players); t++)
 					if (players[t].id == received_data[1])
 						adel(players, t);
 				break;
 				
 			case OLD_PLAYERS :
-			
 				arr = received_data[1];
 				foreach (var t in received_data[1])
 				{
 					myenemy = enemy();
 					myenemy.init(t[2], t[3], t[1]);
+					myenemy.switch_weapon(t[4]);
 					aadd(players, myenemy);				
 				}
 				break;
 
 			case POSITION_PDU :
-			
 				for (var k = 0; k < len(players); k++)
 				{
 					if (received_data[3] == players[k].id)
@@ -334,11 +359,23 @@ function OnTimer()
 				break;
 
 			case CHANGE_WEAPON :
-			
 				for (var k = 0; k < len(players); k++)
 					if (received_data[1] == players[k].id)
 						players[k].switch_weapon(received_data[2]);
 				break;
+				
+			case NEW_AMMO :
+				if (len(arr_supplies) >= 3)
+					adel(arr_supplies, 0);
+				mybox = mysupply.create_supply(received_data[1][0], received_data[1][1]);
+				if (mybox != null)
+					aadd(arr_supplies, mybox);
+				break;
+				
+			case COLLECTED_AMMO :
+				adel(arr_supplies, received_data[2]);
+				
+			default :
 		}
 	}
 }

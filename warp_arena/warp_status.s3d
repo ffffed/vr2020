@@ -1,21 +1,46 @@
+/******************************************************************************************************************
+ *                                          |WARP_STATUS.S3D|                                                     *
+ *----------------------------------------------------------------------------------------------------------------*
+ * This file represents the class that is in charge of dynamically handling the graphical interface of players    *
+ * while they play the game. The main feature are:                                                                *
+ *                                                                                                                *
+ *      -> LIFE BAR: on the bottom part of the screen, there is a life bar that represents a full life. Once a    *
+ *                   player is shot it goes down, and then recharger if a supply is collected from the ground.    *
+ *                                                                                                                *
+ *      -> GUN HANDLER: on the bottom left of the screen, an indicator with the current type of weapon can be     *
+ *                      found, with the relative number of bullets. The normal pistol has 99, and never go down,  *
+ *                      while the railgun has 10, that can be recharged from collecting a supply. The last weapon *
+ *                      has "--", since only 2 can be shot, with the third replacing the first and so on.         *
+ *                                                                                                                *
+ *      -> TARGET: to help players during combat, a target can be found on the screen. It changes position if the *
+ *                 player switches view.                                                                          *
+ *                                                                                                                *
+ *      -> MINI MAP: a minimap can be found on the top right corner of the UI, and it also highlightes the        *
+ *                   current position of the player - enemies are not shown.                                      *
+ *                                                                                                                *
+ ******************************************************************************************************************/
+
 #include "warp_weapons.s3d"
 
+//starting poing on x axis of the health bar
 #define healthX 	0.0
+//starting poing on y axis of the health bar
 #define healthY  	0.02
+//dimension on the x axis of the life bar - it takes all the screen
 #define healthDimX 1
+//dimension on the y axis of the life bar
 #define healthDimY 0.02
-#define spacing    0.02
-#define lifex 		0.033
-#define lifey		0.17
-#define ammox		0.16
-#define ammoy		lifey
-#define numammox   0.17
-#define numammoy   0.072
+//starting poing on x axis of the minimap
 #define mapX			0.7
+//starting poing on y axis of the minimap
 #define mapY			1
+//dimension on the x axis of the minimap
 #define maxXmap		0.3
+//dimension on the y axis of the minimap
 #define maxYmap		0.1954
+//dimension on the y axis of the map cell
 #define mapStepY	0.0046
+//dimension on the x axis of the map cell
 #define mapStepX	0.00148
 
 class status
@@ -32,8 +57,8 @@ class status
 	var f;
 	var num_rows;
 	var num_columns;
-	var p_map_x;
-	var p_map_y;
+	var p_map_x; //temporary position counter on x axis for the drawing of the minimap
+	var p_map_y; //temporary position counter on y axis for the drawing of the minimap
 	
 	init();
 	update(position, view, w_type, n_bullets);
@@ -105,9 +130,9 @@ function status::draw(position, view, w_type, n_bullets)
 			ConsoleText(w_size.x * 0.045, w_size.y * 0.043, "WARP-GUN: --");
 			break;
 			
-		
+		default :
 	}
-	//target (zero for first person, the other for third)
+	//target: 0 for first person, the other for third
 	if (view == 1)
 	{
 		ConsoleColor(1.0, 0.0, 0.0, 1.0);
@@ -179,12 +204,12 @@ function status::recharge(type)
 {
 	switch (type)
 	{
-		case 0 :
+		case 1 :
 			heal_fg = 1;
 			curr_life = life + 0.5;
 			break;
 		
-		case 1 :
+		case 2 :
 			myWeapon.n_bullets_rg = 10;
 			break;
 	}

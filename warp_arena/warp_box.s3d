@@ -1,0 +1,20 @@
+class box 
+{
+	var type;
+	var obj;
+  
+	init(object, tipo);
+	draw_box();
+};
+
+function box::init(object, tipo)
+{
+	obj = object;
+	type = tipo;
+}
+
+function box::draw_box()
+{
+	if (obj != null)
+		obj.draw();
+}

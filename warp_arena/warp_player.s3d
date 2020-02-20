@@ -9,7 +9,6 @@
 
 #include "warp_bullet.s3d"
 #include "warp_status.s3d"
-#include "warp_supplies.s3d"
 
 //Frames used for the players movement
 #define SWAT_START_WALK	16
@@ -17,7 +16,6 @@
 //distance between the player and camera
 #define distance	2
 #define altitude	1.7
-#define spawn_time	5000
 
 var level_matrix;
 //position of the camera
@@ -52,7 +50,6 @@ class player
 	var myCamera;
 	var my_bullet;
 	var mystatus;
-	var mysupplies;
 	
 	//camera related variables
 	var oldCamPos;
@@ -90,9 +87,7 @@ class player
 	var j_count;
 	var J_finalPos;
 	var curr_weapon;
-	var arr_supplies; // array
 	var start_time;
-	var curr_time;
 	var shoot_fx;
 	var step_fx;
 	var id; //unique id given by the server
@@ -103,14 +98,12 @@ class player
 	setrotation(angle);
 	update();
 	collision_check(fl, ang); //checks for collision
-	adding_supply(); //called when the player collects a supply
 	finding_orientation(pos);
 };
 
 function player::init(col, my_id)
 {
 	bullet_array = array(0);
-	arr_supplies = array(0);
 	shot_cnt = 0;
 	has_shot = false;
 	angle = 0;
@@ -179,11 +172,6 @@ function player::init(col, my_id)
   
 	shoot_fx = CVmVRAWAV("shoot.wav");
 	step_fx  = CVmVRAWAV("step.wav");
-  
-	mysupplies = supplies();
-	mysupplies.init();
-  
-	start_time = GetTime();
 }
 
 /******************************************************************************************************************
@@ -495,27 +483,11 @@ function player::draw()
 		else
 			bullet_array[k].draw();
 	}
-	
 	if (portal1[0] == 1)
-	{  
 	    portal1_obj.draw();
-	}
+	    
 	if (portal2[0] == 1)
-	{
 	    portal2_obj.draw();
-
-	}
-	
-	for (var i = 0; i < len(arr_supplies); i++)
-	{ 
-		arr_supplies[i].draw_supplies();
-		if ( [int(position.x), int(position.y), int(position.z)] 
-			== arr_supplies[i].obj.GetPosition() )
-		{
-			mystatus.recharge(arr_supplies[i].sup_type);
-			adel(arr_supplies, i);
-		}
-	}
 }
 
 function player::setposition(pos)
@@ -681,30 +653,6 @@ function player::collision_check(fl, ang)
 		position.z = oldposition.z;
 		CamPos.x = oldCamPos.x;
 		CamPos.z = oldCamPos.z;
-	}
-}
-
-/******************************************************************************************************************
- *                                            |ADDING_SUPPLY|                                                     *
- *----------------------------------------------------------------------------------------------------------------*
- * Function called whenever a new supply has to be added to the map. At first we check weather there already are  *
- * enough of them (since we only want at most 3 at a time), then we proceed to create a new one.                  *
- ******************************************************************************************************************/
-function player::adding_supply()
-{
-	curr_time = GetTime();
-	
-	if (curr_time - start_time >= spawn_time)
-	{
-		start_time = GetTime();
-		
-		mysupplies.create_supplies();
-		
-		if (len(arr_supplies) >= 3)
-			adel(arr_supplies, 0);
-		
-		if (mysupplies.obj != null)
-			aadd(arr_supplies, mysupplies);
 	}
 }
 

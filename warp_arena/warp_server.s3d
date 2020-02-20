@@ -11,8 +11,9 @@
 #include <Script3d.h>
 #include "warp_player.s3d"
 
-#define SERVER_PORT 50023
-#define CLIENT_PORT 50025
+#define SERVER_PORT		50023
+#define CLIENT_PORT		50025
+#define SPAWN_TIME		5000
 
 /****************************************************
  *                     |PDUs|                       *
@@ -53,9 +54,11 @@
 #define PLAYER_EXIT				(5)
 #define EXIT_NOTIFICATION		(6)
 #define CHANGE_WEAPON			(7)
+#define NEW_AMMO				(8)
+#define COLLECTED_AMMO			(9)
 
 var net_channel;
-// PLAYER_ARRAY = [NEW_PLAYER, player_id, position, angle]
+// PLAYER_ARRAY = [NEW_PLAYER, player_id, position, angle, current_weapon]
 var players;
 // PLAYER_IP = [player_id, player_ip_addr]
 var players_ip;
@@ -63,6 +66,14 @@ var players_ip;
 // incremental ID to assign to a player once he requests a connection.
 var id;
 var address1;
+var arr_supplies; //array of supplies
+var posA;
+var posB;
+var posC;
+var posD;
+var posE;
+var pos_arr;
+var start_time;
 
 function OnDownload()
 {
@@ -71,12 +82,23 @@ function OnDownload()
 
 function OnInit()
 {
+	posA = [101, 0, 2];
+	posB = [112, 0, 24];
+	posC = [89, 0, 21];
+	posD = [105, 0, 7];
+	posE = [93, 0, 35];
+	pos_arr = {posA, posB, posC, posD, posE};
+	
 	net_channel = NetCreateChannel(SERVER_PORT, "0.0.0.0", VR_NO_BLOCKING);
 	var address1 = "................";
+	
+	arr_supplies = array(0);
 
 	players = array(0);
 	players_ip = array(0);
 	id = 0;
+	
+	start_time = GetTime();
 	
 	SetTimeStep(1);
 }
@@ -142,8 +164,60 @@ function delete_player(exit_id)
 	var exit_pdu = array(2);
 	exit_pdu[0] = EXIT_NOTIFICATION;
 	exit_pdu[1] = exit_id;
+	
 	foreach (var t in players_ip)
 		mySend(t[1], CLIENT_PORT, exit_pdu);
+}
+
+function notificate_new_ammo(supply)
+{
+	var supply_pdu = array(2);
+	supply_pdu[0] = NEW_AMMO;
+	supply_pdu[1] = supply;
+	
+	foreach (var t in players_ip)
+		mySend(t[1], CLIENT_PORT, supply_pdu);
+}
+
+/******************************************************************************************************************
+ *                                            |ADDING_SUPPLY|                                                     *
+ *----------------------------------------------------------------------------------------------------------------*
+ * Function called whenever a new supply has to be added to the map. At first we check weather there already are  *
+ * enough of them (since we only want at most 3 at a time), then we proceed to create a new one.                  *
+ ******************************************************************************************************************/
+function adding_supply()
+{
+	if (GetTime() - start_time >= SPAWN_TIME)
+	{
+		if (len(arr_supplies) >= 3)
+			adel(arr_supplies, 0);
+			
+		start_time = GetTime();
+		var supply = array(2);
+		var k = rand(2);
+		if (k == 1)
+		{
+			supply[0] = 1;
+			var l = rand(len(pos_arr)-1);
+			supply[1] = pos_arr[l];
+			aadd(arr_supplies, supply);
+		}
+		else if (k == 2)
+		{
+			supply[0] = 2;
+			var l = rand(len(pos_arr)-1);
+			supply[1] = pos_arr[l];
+			aadd(arr_supplies, supply);
+		}
+		else
+		{
+			supply[0] = 0;
+			supply[1] = 0;
+			aadd(arr_supplies, supply);
+		}
+			
+		notificate_new_ammo(supply);
+	}
 }
 
 /****************************************************
@@ -176,17 +250,21 @@ function OnTimer()
 {
 	var curr_time = GetTime();
 	var received_data = NetVarReceiveFrom(net_channel, &address1);
+	var player;
+	var ack;
+	var new_ip;
+	var exit_id;
+	
 	if (received_data != null)
 	{
 		switch (received_data[0])
 		{
 			case CONNECTION_REQUEST :
-			
-				var ack = player_spawn();
+				ack = player_spawn();
 				mySend(address1, CLIENT_PORT, ack);
 				trace(ack);
 
-				var new_ip = array(2);
+				new_ip = array(2);
 				new_ip[0] = ack[2];
 				new_ip[1] = address1;
 				aadd(players_ip, new_ip);	
@@ -199,37 +277,30 @@ function OnTimer()
 					mySend(address1, CLIENT_PORT, old_players_arr);
 				}
 			
-				var player = array(4);
+				player = array(5);
 				player[0] = NEW_PLAYER;
 				player[1] = ack[2];
 				player[2] = ack[1];
-				player[3] = 0;
+				player[3] = 0; //angle
+				player[4] = 0; //starting weapon
 				aadd(players, player);
 			
 				foreach (var t in players_ip)
 					if (ack[2] != t[0])
-						mySend(t[1], CLIENT_PORT, player);
-						
-				else if (received_data[0] == POSITION_PDU)
-				{
-					foreach (var t in players_ip)
-						if (received_data[3] != t[0])
-							mySend(t[1], CLIENT_PORT, received_data);
-				}
-				
+						mySend(t[1], CLIENT_PORT, player);				
 				break;
 				
 			case CHANGE_WEAPON :
-			
+				for (var t = 0; t < len(players); t++)
+					if (received_data[1] == players[t][1])
+							players[t][4] = received_data[2];
 				foreach (var t in players_ip)
 					if (received_data[1] != t[0])
 						mySend(t[1], CLIENT_PORT, received_data);
-				
 				break;
 
 			case PLAYER_EXIT :
-			
-				var exit_id = received_data[1];
+				exit_id = received_data[1];
 				for (var t = 0; t < len(players); t++)
 				{
 					var g = players[t][1];
@@ -241,8 +312,23 @@ function OnTimer()
 					}
 				}
 				break;
+			
+			case POSITION_PDU :
+				foreach (var t in players_ip)
+					if (received_data[3] != t[0])
+						mySend(t[1], CLIENT_PORT, received_data);
+				break;
+			
+			case COLLECTED_AMMO :
+				adel(arr_supplies, received_data[2]);
+				foreach (var t in players_ip)
+					if (received_data[1] != t[0])
+						mySend(t[1], CLIENT_PORT, received_data);
+				
+			default :
 		}
 	}
+	adding_supply();
 }
 
 function OnFrame()

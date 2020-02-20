@@ -1,13 +1,10 @@
-#define sup_life 0
-#define sup_ammo 1
+#include "warp_box.s3d"
+
+#define sup_life 1
+#define sup_ammo 2
 
 class supplies
 {
-	var posA;
-	var posB;
-	var posC;
-	var posD;
-	var posE;
 	var pos_arr; //position array for random spawn
 	var sup_type;
 	var obj;
@@ -18,21 +15,14 @@ class supplies
 	var life_txt;
 	var life_mtr;
 	var life_mesh;
+	var mybox;
 	
 	init();
-	draw_supplies();
-	create_supplies();
+	create_supply(type, pos);
 };
 
 function supplies::init()
-{
-	posA = [101, 0, 2];
-	posB = [112, 0, 24];
-	posC = [89, 0, 21];
-	posD = [105, 0, 7];
-	posE = [93, 0, 35];
-	pos_arr = {posA, posB, posC, posD, posE};
-	
+{	
 	ammo_txt = CVmTexture("ammo_box.png");
 	ammo_mtr = CVmMaterial();
 	ammo_mtr.SetTexture(ammo_txt);
@@ -48,32 +38,31 @@ function supplies::init()
 	life_mesh = CVmNewMesh(VRP_BOX);
 	life_mesh.SetMaterial(life_mtr);
 	life_mesh.Scale(1, 0.5, 1);
-	
-	//supplies = array(0);
-	//start_time = GetTime();
 }
 
-function supplies::draw_supplies()
+function supplies::create_supply(type, pos)
 {
-	if (obj != null)
-		obj.draw();
-}
-		
-function supplies::create_supplies()
-{
-	var k = rand(2);
-	if (k == 1)
+	switch (type)
 	{
-		obj = CVmObj(ammo_mesh);
-		var l = rand(len(pos_arr)-1);
-		obj.SetPosition(pos_arr[l]);
-		sup_type = sup_ammo;
+		case 0 :
+			mybox = null;
+			break;
+			
+		case 1 :
+			obj = CVmObj(life_mesh);
+			obj.setPosition(pos);
+			mybox = box();
+			mybox.init(obj, type);
+			break;
+			
+		case 2 :
+			obj = CVmObj(ammo_mesh);
+			obj.setPosition(pos);
+			mybox = box();
+			mybox.init(obj, type);
+			break;
+			
+		default : 
 	}
-	else if (k == 2)
-	{
-		obj = CVmObj(life_mesh);
-		var l = rand(len(pos_arr)-1);
-		obj.SetPosition(pos_arr[l]);
-		sup_type = sup_life;
-	}
+	return mybox;
 }

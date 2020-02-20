@@ -1,3 +1,13 @@
+/******************************************************************************************************************
+ *                                            |WARP_ENEMY.S3D|                                                    *
+ *----------------------------------------------------------------------------------------------------------------*
+ * This is the enemy class. In order to implement multiplayer online games, each client will see each other player*
+ * as an enemy. This class is nothing more that a lighter and less featured WARP_PLAYER class. The main use of    *
+ * it is to draw in a correct and reliable way the enemies once they connect to the map (or the ones that were    *
+ * already there when the client entered). It also makes them switch their weapons, move their frames and shoot.  *
+ * Once the player is disconnected or dies, it is removed from the list of enemies and will not be drawn.         *
+ ******************************************************************************************************************/
+
 //Frames used for the players movement
 #define ENEMY_START_WALK	16
 #define ENEMY_END_WALK		48
@@ -23,8 +33,8 @@ class enemy
 	var angle; //direction in which the player has to move in
 
 	var step; //players speed
-	var frame_step;
-	var current_frame;
+	var frame_step; 
+	var current_frame; //last frame showed
 	var run; //set to 2 from pressing shift key to run
 	
 	var curr_weapon;
@@ -87,23 +97,27 @@ function enemy::switch_weapon(w)
 {
 	switch (w)
 	{
-		case 0:
+		case 0 :
 			obj.RemoveChild(weapon_obj);
 			weapon_obj = CVmObj(weapon_mesh0);
 			obj.addchild(weapon_obj);
 			curr_weapon = 0;
 			break;
-		case 1:
+			
+		case 1 :
 			obj.RemoveChild(weapon_obj);
 			weapon_obj = CVmObj(weapon_mesh1);
 			obj.addchild(weapon_obj);
 			curr_weapon = 1;
 			break;
-		case 2:
+			
+		case 2 :
 			obj.RemoveChild(weapon_obj);
 			weapon_obj = CVmObj(weapon_mesh2);
 			obj.addchild(weapon_obj);
 			curr_weapon = 2;
 			break;
+			
+		default : 
 	}
 }

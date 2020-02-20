@@ -1,4 +1,4 @@
-// Ogni quanti frame posso sparare
+//minimum time to shoot between frames
 #define min_shot  50
 
 class bullet
@@ -67,11 +67,10 @@ function bullet::update()
 	if (hit > position.y)
 		hit_fg = True;
 	else	
-	obj.SetPosition(position);
+		obj.SetPosition(position);
 }
 
 function bullet::draw()
 {
-	
 	obj.draw();
 }
