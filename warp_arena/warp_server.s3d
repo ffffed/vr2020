@@ -45,6 +45,21 @@
  * CHANGE_WEAPON: sent by a client once he changes  *
  * weapon. It is sent as it is from the server to   *
  * all clients.                                     *
+ *                                                  *
+ * NEW_AMMO: a new life or ammonition box has       *
+ * entered the arena!                               *
+ *                                                  *
+ * COLLECTED_AMMO: notifies all players that the    *
+ * ammonition box is no more available.             *
+ *                                                  *
+ * OLD_AMMO: passed to players when they enter the  *
+ * arena. It is a vector containing all the         *
+ * currently spawned boxes on the map.              *
+ *                                                  *
+ * SHOT_PDU: notifies that a player shot a bullet.  *
+ *                                                  *
+ * BULLET_ON_WALL: notifies all players that a      *
+ * bullet has hit a wall, in order to delete it.    *
  ****************************************************/
 #define CONNECTION_REQUEST		(0)
 #define CONNECTION_OK			(1)
@@ -58,6 +73,7 @@
 #define COLLECTED_AMMO			(9)
 #define OLD_AMMO				(10)
 #define SHOT_PDU				(11)
+#define BULLET_ON_WALL			(12)
 
 var net_channel;
 // PLAYER_ARRAY = [NEW_PLAYER, player_id, position, angle, current_weapon]
@@ -130,16 +146,18 @@ function player_spawn()
 	pdu = array(3);
 	
 	pdu[0] = CONNECTION_OK;
+	id += 1;
 	
 	rand_row = rand(9);
-	rand_row += 12;
+	if ( (id % 2) == 0 )
+		rand_row += 12;
+	else
+		rand_row += 179;
 	rand_col = rand(9);
 	rand_col += 18;
 	pos = [rand_row, 0, rand_col];
 	pdu[1] = pos;
-	
-	id += 1;
-	
+
 	pdu[2] = id;
 
 	return pdu;
@@ -170,6 +188,16 @@ function delete_player(exit_id)
 	foreach (var t in players_ip)
 		mySend(t[1], CLIENT_PORT, exit_pdu);
 }
+
+/****************************************************
+ *            |NOTIFICATE_NEW_AMMO|                 *
+ *--------------------------------------------------*
+ * Used to tell everyone that a new ammonition box  *
+ * has entered the arena. The structure is:         *
+ *                                                  *
+ * PDU[0] = NEW_AMMO;                               *
+ * PDU[1] = supply structure[type, position].       *
+ ****************************************************/
 
 function notificate_new_ammo(supply)
 {
@@ -246,6 +274,21 @@ function adding_supply()
  * he is deleted from all the lists and the message *
  * is sent to all other players, in order to update *
  * their own structure.                             *
+ *                                                  *
+ * POSITION_PDU: a player has modified his position *
+ * from the last time it was checked. We must give  *
+ * this information to everyone.                    *
+ *                                                  *
+ * COLLECTED_AMMO: a player has collected an ammo   *
+ * box from the arena. We must nofiticate everyone  *
+ * so they delete it.                               *
+ *                                                  *
+ * SHOT_PDU: a player has shot a bullet. We must    *
+ * give this information to everyone.               *
+ *                                                  *
+ * BULLET_ON_WALL: a bullet has hit a wall. The     *
+ * check is done on client side, and he notificates *
+ * the server, in order to let everyone else know.  *
  ****************************************************/
 
 function OnTimer()
@@ -313,7 +356,6 @@ function OnTimer()
 				exit_id = received_data[1];
 				for (var t = 0; t < len(players); t++)
 				{
-					var g = players[t][1];
 					if (players[t][1] == exit_id)
 					{
 						adel(players, t);
@@ -340,6 +382,13 @@ function OnTimer()
 				foreach (var t in players_ip)
 					if (received_data[1] != t[0])
 						mySend(t[1], CLIENT_PORT, received_data);
+				break;
+			
+			case BULLET_ON_WALL :
+				foreach (var t in players_ip)
+					if (received_data[1] != t[0])
+						mySend(t[1], CLIENT_PORT, received_data);
+				break;	
 				
 			default :
 		}

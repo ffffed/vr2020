@@ -75,6 +75,9 @@ function level::init(level_textfile)
 	level_matrix = array(num_rows);
 	trace(num_rows,num_columns);
 	//map creation based on the characters found on the level.txt file.
+	var t;
+	var r;
+	
 	for(var i = 0; i < num_rows; i++)
 	{
 		level_matrix[i] = array(num_columns);
@@ -82,47 +85,47 @@ function level::init(level_textfile)
 		for(var j = 0; j < num_columns; j++)
 		{
 			//inner walls
-			if (f[i][j] == "*")
+			switch (f[i][j])
 			{
+			case "*" :
 				level_matrix[i][j] = 5;
-				var t = CVmObj(wall_mesh);
+				t = CVmObj(wall_mesh);
 				t.SetPosition(j,0,i);
 				aadd(wall_obj_array,t);
 				aadd(obstacle_array, t);
-			}
+				break;
 			//outer walls
-			else if (f[i][j] == "#")
-			{
+			case "#" :
 				level_matrix[i][j] = 5;
-				var t = CVmObj(wall1_mesh);
+				t = CVmObj(wall1_mesh);
 				t.SetPosition(j,0,i);
 				aadd(wall1_obj_array,t);
 				aadd(obstacle_array, t);
-			}
+				break;
 			//heart box
-			else if (f[i][j] == "@")
-			{
+			case "@" :
 				level_matrix[i][j] = 1;
-				var t = CVmObj(box_mesh);
+				t = CVmObj(box_mesh);
 				t.SetPosition(j,0,i);
 				aadd(box_obj_array,t);
 				aadd(obstacle_array, t);
-			}
+				break;
 			//two cases one on top the other
-			else if (f[i][j] == "+")
-			{
+			case "+" :
 				level_matrix[i][j] = 2;
-				var t = CVmObj(box_mesh);
-				var r = CVmObj(box_mesh);
+				t = CVmObj(box_mesh);
+				r = CVmObj(box_mesh);
 				t.SetPosition(j,0,i);
 				r.SetPosition(j,1,i);
 				aadd(box_obj_array,t);
 				aadd(obstacle_array,t);
 				aadd(box_obj_array,r);
 				aadd(obstacle_array,r);
-			}
-			else			
+				break;
+			
+			default :			
 				level_matrix[i][j] = 0;
+			}
 		}
 	}
 

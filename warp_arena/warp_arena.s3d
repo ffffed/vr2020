@@ -21,7 +21,7 @@
 #include "warp_enemy.s3d"
 #include "warp_supplies.s3d"
 //client/server defines
-#define SERVER_IP 		"192.168.43.133"
+#define SERVER_IP 		"172.20.10.4"
 #define SERVER_PORT		50023
 #define CLIENT_PORT		50025
 
@@ -55,8 +55,23 @@
  * CHANGE_WEAPON: sent by a client once he changes  *
  * weapon. It is sent as it is from the server to   *
  * all clients.                                     *
+ *                                                  *
+ * NEW_AMMO: a new life or ammonition box has       *
+ * entered the arena!                               *
+ *                                                  *
+ * COLLECTED_AMMO: notifies all players that the    *
+ * ammonition box is no more available.             *
+ *                                                  *
+ * OLD_AMMO: passed to players when they enter the  *
+ * arena. It is a vector containing all the         *
+ * currently spawned boxes on the map.              *
+ *                                                  *
+ * SHOT_PDU: notifies that a player shot a bullet.  *
+ *                                                  *
+ * BULLET_ON_WALL: notifies all players that a      *
+ * bullet has hit a wall, in order to delete it.    *
  ****************************************************/
-#define CONNECTION_REQUEST		(0)
+#define CONNECTION_REQUEST	(0)
 #define CONNECTION_OK			(1)
 #define POSITION_PDU			(2)
 #define NEW_PLAYER				(3)
@@ -68,6 +83,7 @@
 #define COLLECTED_AMMO			(9)
 #define OLD_AMMO				(10)
 #define SHOT_PDU				(11)
+#define BULLET_ON_WALL			(12)
 
 #define connection_retry 		500
 
@@ -214,13 +230,31 @@ function OnFrame()
 	position = myplayer.position;
 	angle = myplayer.angle;
 	
+	for (var k = 0; k < len(myplayer.bullet_array); k++)
+	{
+		if (myplayer.bullet_array[k].hit_fg == true)
+		{
+			var wall_bullet = array(3);
+			wall_bullet[0] = BULLET_ON_WALL;
+			wall_bullet[1] = myplayer.id;
+			wall_bullet[2] = myplayer.bullet_array[k].bull_id;
+			mySend(SERVER_IP, SERVER_PORT, wall_bullet);
+		}
+	}
+	
 	if (myplayer.shot_flag == 1)
 	{
 		myplayer.shot_flag = 0;
 		var bullet_pdu = array(3);
 		bullet_pdu[0] = SHOT_PDU;
 		bullet_pdu[1] = myplayer.id;
-		bullet_pdu[2] = myplayer.my_bullet;
+		var bullet_info = array(5);
+		bullet_info[0] = myplayer.my_bullet.bull_id;
+		bullet_info[1] = myplayer.my_bullet.direction;
+		bullet_info[2] = myplayer.my_bullet.position;
+		bullet_info[3] = myplayer.my_bullet.tipo;
+		bullet_info[4] = myplayer.my_bullet.speed;
+		bullet_pdu[2] = bullet_info;
 		mySend(SERVER_IP, SERVER_PORT, bullet_pdu);
 	}
 	
@@ -292,9 +326,13 @@ function OnFrame()
 		
 	foreach (var t in arr_supplies)
 		t.draw_box();
-		
+	
 	foreach (var t in enemy_bullets)
-		t.draw_bullet();
+	{
+		t[1].position += t[1].direction * t[1].speed;
+		t[1].obj.setPosition(t[1].position);
+		t[1].draw_bullet();
+	}
 		
 	SceneEnd();
 }
@@ -330,6 +368,26 @@ function DownloadReady(RequestID)
  *                                                  *
  * CHANGE_WEAPON: notifyes me that a player changed *
  * his weapon, in order to correctly draw him.      *
+ *                                                  *
+ * NEW_AMMO: a new box containing life or bullets   *
+ * has entered the arena. It can be collected.      *
+ *                                                  *
+ * OLD_AMMO: sent by the server as soon as i log on *
+ * a game. It contains the existing boxes that are  *
+ * currently on the ground, that spawned before I   *
+ * logged on the arena.                             *
+ *                                                  *
+ * COLLECTED_AMMO: a player has collected an ammo,  *
+ * therefore I must delete it from the structure.   *
+ *                                                  *
+ * SHOT_PDU: A player has shot a bullet. I must add *
+ * it to the enemy_bullets array containing the id  *
+ * of its player and the bullet itself, so I know   *
+ * which one must be deleted.                       *
+ *                                                  *
+ * BULLET_ON_WALL: a bullet from another player has *
+ * hit a wall. I must delete the corresponding      *
+ * element from the enemy_bullets array structure.  *
  ****************************************************/
 
 function OnTimer()
@@ -337,6 +395,8 @@ function OnTimer()
 	var received_data = NetVarReceiveFrom(net_channel, &address1);
 	if (received_data != null)
 	{
+		var enemyBull;
+		var placeholder;
 		switch (received_data[0])
 		{
 			case NEW_PLAYER :
@@ -403,7 +463,25 @@ function OnTimer()
 				break;
 				
 			case SHOT_PDU :
-				aadd(enemy_bullets, received_data);
+				placeholder = array(2);
+				placeholder[0] = received_data[1];
+				enemyBull = bullet();
+				enemyBull.init(received_data[2][2] - [0, 1, 0], received_data[2][1], level_matrix, 
+					received_data[2][3],  received_data[2][0]);
+				placeholder[1] = enemyBull;
+				aadd(enemy_bullets, placeholder);
+				break;
+				
+			case BULLET_ON_WALL :
+				for(var k = 0; k < len(enemy_bullets); k++)
+				{
+					if ( (enemy_bullets[k][0] == received_data[1]) 
+						&& (enemy_bullets[k][1].bull_id == received_data[2]) ) 
+					{
+						trace(k);
+						adel(enemy_bullets, k);
+					}
+				}
 				break;
 				
 			default :

@@ -169,28 +169,30 @@ function status::draw(position, view, w_type, n_bullets)
 		{
 			counter_x += mapStepX;
 			//inner walls
-			if (f[i][j] == "*")
+			switch (f[i][j])
 			{
+			case "*" :
 				ConsoleColor(0.6, 0.0, 0.0, 1.0);
 				ConsoleFilledRect(mapX + counter_x, mapY - counter_y, mapStepX, mapStepY);
-			}
+				break;
+
 			//outer walls
-			else if (f[i][j] == "#")
-			{
+			case "#" :
 				ConsoleColor(0.6, 0.0, 0.0, 1.0);
 				ConsoleFilledRect(mapX + counter_x, mapY - counter_y, mapStepX, mapStepY);
-			}
+				break;
 			//heart box
-			else if (f[i][j] == "@")
-			{
+			case "@" :
 				ConsoleColor(0.5, 0.55, 0.4, 1.0);
 				ConsoleFilledRect(mapX + counter_x, mapY - counter_y, mapStepX, mapStepY);
-			}
+				break;
 			//two cases one on top the other
-			else if (f[i][j] == "+")
-			{
+			case "+" :
 				ConsoleColor(0.5, 0.55, 0.4, 1.0);
 				ConsoleFilledRect(mapX + counter_x, mapY - counter_y, mapStepX, mapStepY);
+				break;
+			
+			default :
 			}
 		}
 	}
@@ -200,6 +202,7 @@ function status::draw(position, view, w_type, n_bullets)
 	ConsoleFilledRect(p_map_x, p_map_y, mapStepX, mapStepY);
 }
 
+//heals a player for 50% of his total life when he gets a supply
 function status::recharge(type)
 {
 	switch (type)
@@ -212,6 +215,8 @@ function status::recharge(type)
 		case 2 :
 			myWeapon.n_bullets_rg = 10;
 			break;
+		
+		default :
 	}
 }
 

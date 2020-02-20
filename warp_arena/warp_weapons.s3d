@@ -1,7 +1,25 @@
-#define railgun  1
-#define rocket   0
-#define warp     2
+/******************************************************************************************************************
+ *                                          |WARP_WEAPONS.S3D|                                                    *
+ *----------------------------------------------------------------------------------------------------------------*
+ * This file represents the class that is in charge of dynamically handling the weapons in the game. There are 3  *
+ * and all have different utilization effects on the game:                                                        *
+ *                                                                                                                *
+ *      -> PISTOL: this is the first weapon a player can use. Damege is quite low, since it only takes 10% of life*
+ *                 from players, but the bullets travelling speed is quite high.                                  * 
+ *                                                                                                                *
+ *      -> RAILGUN: this is the secondary weapon. A whopping 50%(!) of damage is worth taking one of these        *
+ *                  bullets. The tradeoff is that each player is equipped with only 10 bullets at the start of the*
+ *                  game, but can recharge the weapon by collecting ammonition from the ground.                   *
+ *                                                                                                                *
+ *      -> WARP_GUN: here is where the fun starts! this weapon can shoot 2 bullets at a time, and hit for 0 damage*
+ *                   on players. The effect is that on colliding with walls, it creates portals with the other    *
+ *                   warp! Since only two can be on the map on the same time, the third deletes the first and so  *
+ *                   on. Note that players can see only their warp, but can see enemy bullets creating them!      *
+ ******************************************************************************************************************/
 
+#define rocket   0
+#define railgun  1
+#define warp     2
 
 class weapon
 {
