@@ -11,17 +11,19 @@ class bullet
 	var matrix;
 	var hit_fg;
 	var damage;
+	var bull_id;
 	
-	init(pos, dir, lvl_matrix, type);
+	init(pos, dir, lvl_matrix, type, id);
 	update();
-	draw();
+	draw_bullet();
 };
 
-function bullet::init(pos, dir, lvl_matrix, type)
+function bullet::init(pos, dir, lvl_matrix, type, id)
 {
 	matrix = lvl_matrix;
 	position  = pos + [0, 1, 0];
 	trace(position, dir);
+	bull_id = id;
 
 	direction = dir;
 	speed = 0.5;
@@ -70,7 +72,7 @@ function bullet::update()
 		obj.SetPosition(position);
 }
 
-function bullet::draw()
+function bullet::draw_bullet()
 {
 	obj.draw();
 }

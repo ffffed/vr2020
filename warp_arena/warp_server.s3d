@@ -56,6 +56,8 @@
 #define CHANGE_WEAPON			(7)
 #define NEW_AMMO				(8)
 #define COLLECTED_AMMO			(9)
+#define OLD_AMMO				(10)
+#define SHOT_PDU				(11)
 
 var net_channel;
 // PLAYER_ARRAY = [NEW_PLAYER, player_id, position, angle, current_weapon]
@@ -276,6 +278,14 @@ function OnTimer()
 					old_players_arr[1] = players;
 					mySend(address1, CLIENT_PORT, old_players_arr);
 				}
+				
+				if (len(arr_supplies) > 0)
+				{
+					var old_arr_supply = array(2);
+					old_arr_supply[0] = OLD_AMMO;
+					old_arr_supply[1] = arr_supplies;
+					mySend(address1, CLIENT_PORT, old_arr_supply);
+				}
 			
 				player = array(5);
 				player[0] = NEW_PLAYER;
@@ -321,6 +331,12 @@ function OnTimer()
 			
 			case COLLECTED_AMMO :
 				adel(arr_supplies, received_data[2]);
+				foreach (var t in players_ip)
+					if (received_data[1] != t[0])
+						mySend(t[1], CLIENT_PORT, received_data);
+				break;
+						
+			case SHOT_PDU :
 				foreach (var t in players_ip)
 					if (received_data[1] != t[0])
 						mySend(t[1], CLIENT_PORT, received_data);

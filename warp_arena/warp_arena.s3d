@@ -66,6 +66,8 @@
 #define CHANGE_WEAPON			(7)
 #define NEW_AMMO				(8)
 #define COLLECTED_AMMO			(9)
+#define OLD_AMMO				(10)
+#define SHOT_PDU				(11)
 
 #define connection_retry 		500
 
@@ -98,6 +100,7 @@ var position; //new position to check
 var old_angle; //old direction to check
 var angle; //new direction to check
 var old_weapon; //used to check weather the weapon has changed
+var enemy_bullets;
 
 var address1;
 var arr;
@@ -154,6 +157,7 @@ function OnInit(params)
 	players = array(0);
 	
 	old_weapon = 0;
+	enemy_bullets = array(0);
 	
 	mysupply = supplies();
 	mysupply.init();
@@ -209,6 +213,16 @@ function OnFrame()
 	myplayer.update();
 	position = myplayer.position;
 	angle = myplayer.angle;
+	
+	if (myplayer.shot_flag == 1)
+	{
+		myplayer.shot_flag = 0;
+		var bullet_pdu = array(3);
+		bullet_pdu[0] = SHOT_PDU;
+		bullet_pdu[1] = myplayer.id;
+		bullet_pdu[2] = myplayer.my_bullet;
+		mySend(SERVER_IP, SERVER_PORT, bullet_pdu);
+	}
 	
 	//I changed my position from the last one this function was called.
 	//I must notificate the server of this change.
@@ -278,6 +292,9 @@ function OnFrame()
 		
 	foreach (var t in arr_supplies)
 		t.draw_box();
+		
+	foreach (var t in enemy_bullets)
+		t.draw_bullet();
 		
 	SceneEnd();
 }
@@ -372,8 +389,22 @@ function OnTimer()
 					aadd(arr_supplies, mybox);
 				break;
 				
+			case OLD_AMMO :
+				for (var k = 0; k < len(received_data[1]); k++)
+				{
+					mybox = mysupply.create_supply(received_data[1][k][0], received_data[1][k][0]);
+					if (mybox != null)
+						aadd(arr_supplies, mybox);
+				}
+				break;
+				
 			case COLLECTED_AMMO :
 				adel(arr_supplies, received_data[2]);
+				break;
+				
+			case SHOT_PDU :
+				aadd(enemy_bullets, received_data);
+				break;
 				
 			default :
 		}

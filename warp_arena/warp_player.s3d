@@ -91,6 +91,8 @@ class player
 	var shoot_fx;
 	var step_fx;
 	var id; //unique id given by the server
+	var shot_flag; //used from client to check if a bullet has been shot
+	var bullet_id;
 
 	init(col, my_id);
 	draw();
@@ -120,6 +122,8 @@ function player::init(col, my_id)
 	curr_weapon = 0;
 	id = my_id;
 	leftang = angle + pi/2;
+	shot_flag = 0;
+	bullet_id = 0;
   
 	lower_mesh = CVmNewMesh("swat_lower.aam");
 	var sf1 = lower_mesh.normalize(1);
@@ -379,8 +383,10 @@ function player::update()
 			var check = mystatus.myWeapon.update(curr_weapon);
 			if (check == true)
 			{
+				bullet_id += 1;
+				shot_flag = 1;
 				my_bullet = bullet();
-				my_bullet.init(position, direction, level_matrix, curr_weapon);
+				my_bullet.init(position, direction, level_matrix, curr_weapon, bullet_id);
 				aadd(bullet_array, my_bullet);
 				shoot_fx.play();
 				has_shot = true;
@@ -481,7 +487,7 @@ function player::draw()
 			adel(bullet_array, k);
 		}
 		else
-			bullet_array[k].draw();
+			bullet_array[k].draw_bullet();
 	}
 	if (portal1[0] == 1)
 	    portal1_obj.draw();
