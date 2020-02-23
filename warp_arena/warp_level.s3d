@@ -7,7 +7,6 @@
  * and create dynamically (but only once) each object.                                                            *
  ******************************************************************************************************************/
  
-var obstacle_array;
 
 class level
 {
@@ -17,10 +16,6 @@ class level
 	var floor_mesh;
 	var sky_mesh;
 	
-	var wall_obj_array;
-	var wall1_obj_array;
-	var box_obj_array;
-
 	var wall_material;
 	var wall1_material;
 	var box_material;
@@ -55,17 +50,16 @@ function level::init(level_textfile)
 	box_material.SetTexture(box_texture);
 	box_material.ChangeTextureParams(VR_V_TILING, 1);
 	
-	wall_obj_array = array(0);
+
 	wall_mesh = CVmNewMesh(VRP_BOX);
 	wall_mesh.SetMaterial(wall_material);
 	wall_mesh.Scale(1, 5, 1);
 	
-	wall1_obj_array = array(0);
+
 	wall1_mesh = CVmNewMesh(VRP_BOX);
 	wall1_mesh.SetMaterial(wall1_material);
 	wall1_mesh.Scale(1, 5, 1);
 	
-	box_obj_array = array(0);
 	box_mesh = CVmNewMesh(VRP_BOX);
 	box_mesh.SetMaterial(box_material);
 	box_mesh.Scale(1, 1, 1);
@@ -91,24 +85,21 @@ function level::init(level_textfile)
 				level_matrix[i][j] = 5;
 				t = CVmObj(wall_mesh);
 				t.SetPosition(j,0,i);
-				aadd(wall_obj_array,t);
-				aadd(obstacle_array, t);
+				aadd(obj_array,t);
 				break;
 			//outer walls
 			case "#" :
 				level_matrix[i][j] = 5;
 				t = CVmObj(wall1_mesh);
 				t.SetPosition(j,0,i);
-				aadd(wall1_obj_array,t);
-				aadd(obstacle_array, t);
+				aadd(obj_array,t);
 				break;
 			//heart box
 			case "@" :
 				level_matrix[i][j] = 1;
 				t = CVmObj(box_mesh);
 				t.SetPosition(j,0,i);
-				aadd(box_obj_array,t);
-				aadd(obstacle_array, t);
+				aadd(obj_array,t);
 				break;
 			//two cases one on top the other
 			case "+" :
@@ -117,10 +108,8 @@ function level::init(level_textfile)
 				r = CVmObj(box_mesh);
 				t.SetPosition(j,0,i);
 				r.SetPosition(j,1,i);
-				aadd(box_obj_array,t);
-				aadd(obstacle_array,t);
-				aadd(box_obj_array,r);
-				aadd(obstacle_array,r);
+				aadd(obj_array,t);
+				aadd(obj_array,r);
 				break;
 			
 			default :			
@@ -154,11 +143,7 @@ function level::init(level_textfile)
 
 function level::draw()
 {
-	foreach (var t in wall_obj_array)
-		t.Draw();
-	foreach (var t in wall1_obj_array)
-		t.Draw();
-	foreach (var t in box_obj_array)
+	foreach (var t in obj_array)
 		t.Draw();
 	floor_mesh.draw();
 	sky_mesh.draw();

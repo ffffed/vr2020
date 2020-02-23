@@ -11,9 +11,9 @@
 #include <Script3d.h>
 #include "warp_player.s3d"
 
+#define SPAWN_TIME		5000
 #define SERVER_PORT		50023
 #define CLIENT_PORT		50025
-#define SPAWN_TIME		5000
 
 /****************************************************
  *                     |PDUs|                       *

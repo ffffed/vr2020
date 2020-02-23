@@ -1,0 +1,9 @@
+#ifndef GLOBAL_H
+#define GLOBAL_H
+
+var level_matrix;
+var obj_array = array(0);
+
+
+
+#endif   // Global_H

@@ -17,7 +17,6 @@
 #define distance	2
 #define altitude	1.7
 
-var level_matrix;
 //position of the camera
 var CamPos;
 //Placeholder variables for the players position
@@ -73,7 +72,7 @@ class player
 	var frame_step;
 	var current_frame;
 	var run; //set to 2 from pressing shift key to run
-	var portal1;
+	var portal1; // Array 0 se c'è, 1 la direction del proiettile che lo ha generato
 	var portal2;
 	//flags and other variables
 	var angle; //initial players direction
@@ -101,6 +100,7 @@ class player
 	update();
 	collision_check(fl, ang); //checks for collision
 	finding_orientation(pos);
+	warp_check(ang);
 };
 
 function player::init(col, my_id)
@@ -138,7 +138,7 @@ function player::init(col, my_id)
 	weapon_mesh2.ModulateMaterials(0, 0, 1, 1);
 	portal_mesh = CVMNewMesh(VRP_BOX);
 	portal_mesh.ModulateMaterials(0.0,0.0,1,1);
-	portal_mesh.scale(1,1,1);
+	portal_mesh.scale(1.5,2,1.5);
 	
 	lower_obj = CVmObj(lower_mesh);
 	upper_obj = CVmObj(upper_mesh);
@@ -290,8 +290,8 @@ function player::update()
 			step_fx.play();
 			current_frame = SWAT_START_WALK;
 		}
-		
-		collision_check(1, angle);
+		if (!warp_check(angle))
+			collision_check(1, angle);
  }
 
 	// Backwards Walk
@@ -313,8 +313,8 @@ function player::update()
 		{
 			current_frame = SWAT_END_WALK;
 		}
-
-		collision_check(0, angle);
+		if (!warp_check(angle+PI))
+			collision_check(0, angle);
 	}
 	
 	if (keypressed("Q"))
@@ -335,8 +335,8 @@ function player::update()
 			step_fx.play();
 			current_frame = SWAT_START_WALK;
 		}
-    
-		collision_check(1, leftang);
+    	if (!warp_check(leftang))
+			collision_check(1, leftang);
 	}
 
 	// Backwards Walk
@@ -357,8 +357,8 @@ function player::update()
 		step_fx.play();
 		current_frame = SWAT_END_WALK;
 	}
-
-	collision_check(0, leftang);
+	if (!warp_check(leftang+PI))
+		collision_check(0, leftang);
 	}
 	
 	// R for first person, F to go back to third person
@@ -386,7 +386,7 @@ function player::update()
 				bullet_id += 1;
 				shot_flag = 1;
 				my_bullet = bullet();
-				my_bullet.init(position, direction, level_matrix, curr_weapon, bullet_id);
+				my_bullet.init(position, direction, curr_weapon, bullet_id);
 				aadd(bullet_array, my_bullet);
 				shoot_fx.play();
 				has_shot = true;
@@ -456,7 +456,7 @@ function player::draw()
 			  var p;
 			  if (portal1[0] == 0)
 			  {
-			  	p = [int(bullet_array[k].position.x), 1, int(bullet_array[k].position.z)];
+			  	p = [int(bullet_array[k].position.x), 0, int(bullet_array[k].position.z)];
 			  	portal1_obj.setposition(p);
 			  	portal1[1] = -(bullet_array[k].direction);
 			  	portal1[0] = 1;
@@ -465,18 +465,18 @@ function player::draw()
 			  {
 			  	if (portal2[0] == 0)
 				  {
-				  	p = [int(bullet_array[k].position.x), 1, int(bullet_array[k].position.z)];
+				  	p = [int(bullet_array[k].position.x), 0, int(bullet_array[k].position.z)];
 				  	portal2_obj.setposition(p);
 				  	portal2[1] = -(bullet_array[k].direction);
 				  	portal2[0] = 1;
 				  }
 				  else
 				  { 
-				  	p = [int(portal2_obj.getPosition().x), 1, int(portal2_obj.getPosition().z)];
+				  	p = [int(portal2_obj.getPosition().x), 0,int(portal2_obj.getPosition().z)];
 				  	portal1[1] = portal2[1];
 			  		portal1_obj.setposition(p);
 			  		portal1[0] = 1;
-					p = [int(bullet_array[k].position.x), 1, int(bullet_array[k].position.z)];			  		
+					p = [int(bullet_array[k].position.x), 0, int(bullet_array[k].position.z)];			  		
 					portal2_obj.setposition(p);
 				  	portal2[1] = -(bullet_array[k].direction);
 				  	portal2[0] = 1;
@@ -536,8 +536,8 @@ function player::setrotation(angle)
 		}
 	}
 	//Now we'll check weather the camera is in a wall 
-	cam_z = int(CamPos.z);
-	cam_x = int(CamPos.x);
+	cam_z = ( int(CamPos.z) > 0) ? int(CamPos.z) : 0;
+	cam_x = ( int(CamPos.x) > 0) ? int(CamPos.x) : 0;
 	var cam_inside = level_matrix[cam_z][cam_x];
   
 	//If we are in third person and the camera finds itself being in a wall, then we must
@@ -575,10 +575,12 @@ function player::collision_check(fl, ang)
 	var diroblique_r = [sin(c), 0, cos(c)];
 	var diroblique_bl = [sin(d), 0, cos(d)];
 	var diroblique_br = [sin(e), 0, cos(e)];
+	
+	
+	
 	// Collision detection has to also check beside the avatar
 	pos_l += (dirleft * step * run);
 	pos_r -= (dirleft * step * run);
-	trace(dirfront, dirleft);
 	if (fl == 1)
 	{
 		pos_ol += (diroblique_l * step * run);
@@ -660,8 +662,41 @@ function player::collision_check(fl, ang)
 		CamPos.x = oldCamPos.x;
 		CamPos.z = oldCamPos.z;
 	}
+	
 }
 
+
+
+
+ function player::warp_check(ang)
+ {
+ 	
+	var ret = false;
+	var dirfront = [sin(ang), 0, cos(ang)];
+	i = ( int(position.z + dirfront.z) > 0) ? int(position.z + dirfront.z) : 0;
+	j = ( int(position.x + dirfront.x) > 0) ? int(position.x + dirfront.x) : 0;
+	var px1 = int(portal1_obj.getposition().x); 
+	var pz1 = int(portal1_obj.getposition().z);
+	var px2 = int(portal2_obj.getposition().x); 
+	var pz2 = int(portal2_obj.getposition().z);
+	
+	if (portal1[0] == 1 && portal2[0] == 1)
+	{
+		if (i == pz1 && j == px1)
+		{
+			position = portal2_obj.getposition();
+			position+= + (portal2[1]*step*run);
+			ret = true;
+		}
+		else if (i == pz2 && j == px2)
+		{
+			position = portal1_obj.getposition();
+			position+= + (portal1[1]*step*run);
+			ret = true;
+		}
+	}
+	return ret;
+ }
 /* Attualmente non funziona */
 
 function player::finding_orientation(pos)
