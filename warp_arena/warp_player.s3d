@@ -11,7 +11,7 @@
 #include "warp_status.s3d"
 
 //Frames used for the players movement
-#define SWAT_START_WALK	16
+#define SWAT_START_WALK		16
 #define SWAT_END_WALK		48
 //distance between the player and camera
 #define distance	2
@@ -101,6 +101,7 @@ class player
 	update();
 	collision_check(fl, ang); //checks for collision
 	finding_orientation(pos);
+	warp_check();
 };
 
 function player::init(col, my_id)
@@ -138,7 +139,7 @@ function player::init(col, my_id)
 	weapon_mesh2.ModulateMaterials(0, 0, 1, 1);
 	portal_mesh = CVMNewMesh(VRP_BOX);
 	portal_mesh.ModulateMaterials(0.0,0.0,1,1);
-	portal_mesh.scale(1,1,1);
+	portal_mesh.scale(0.5,2,0.5);
 	
 	lower_obj = CVmObj(lower_mesh);
 	upper_obj = CVmObj(upper_mesh);
@@ -169,10 +170,8 @@ function player::init(col, my_id)
 	frame_step = 1.0;
 	current_frame = SWAT_START_WALK;
 	run = 1;
-	portal1 = array(2); // Hit e direzione
-	portal2 = array(2);
-	portal1[0] = 0; // No Hit
-	portal2[0] = 0;
+	portal1 = 0; // Hit 
+	portal2 = 0;
   
 	shoot_fx = CVmVRAWAV("shoot.wav");
 	step_fx  = CVmVRAWAV("step.wav");
@@ -368,10 +367,6 @@ function player::update()
 	if (keypressed("F"))
 		view = 1;
       
-	setrotation(angle);
-	setposition(position);
-	CameraGetCurrent().SetPosition(CamPos);
-  
 	/*
 	* Per lo sparo bisogna creare un array di istanze, una per ogni bullet.
 	* Per ogni proiettile, bisogna tenerne traccia, mediante l'istanza dell'oggetto che gli compete.
@@ -420,6 +415,26 @@ function player::update()
 		curr_weapon = 2;
 		mystatus.myWeapon.swap(curr_weapon);
 	}
+	
+	if (keypressed ("M"))
+	{
+			  	portal1_obj.setposition(oldposition);
+			  	portal1 = 1;
+	}
+	
+	
+	if (keypressed ("N"))
+	{
+		trace(portal1, portal2);
+			  	portal2_obj.setposition(oldposition);
+			  	portal2 = 1;
+	}
+	
+	
+warp_check();
+setrotation(angle);
+setposition(position);
+CameraGetCurrent().SetPosition(CamPos);
 
 	for(var k = 0; k < len(bullet_array); k++)
 		bullet_array[k].update();
@@ -451,49 +466,22 @@ function player::draw()
 	{
 		if (bullet_array[k].hit_fg == true)
 		{
-			if(bullet_array[k].damage == 0) // warp
-			{
-			  var p;
-			  if (portal1[0] == 0)
-			  {
-			  	p = [int(bullet_array[k].position.x), 1, int(bullet_array[k].position.z)];
-			  	portal1_obj.setposition(p);
-			  	portal1[1] = -(bullet_array[k].direction);
-			  	portal1[0] = 1;
-			  }
-			  else 
-			  {
-			  	if (portal2[0] == 0)
-				  {
-				  	p = [int(bullet_array[k].position.x), 1, int(bullet_array[k].position.z)];
-				  	portal2_obj.setposition(p);
-				  	portal2[1] = -(bullet_array[k].direction);
-				  	portal2[0] = 1;
-				  }
-				  else
-				  { 
-				  	p = [int(portal2_obj.getPosition().x), 1, int(portal2_obj.getPosition().z)];
-				  	portal1[1] = portal2[1];
-			  		portal1_obj.setposition(p);
-			  		portal1[0] = 1;
-					p = [int(bullet_array[k].position.x), 1, int(bullet_array[k].position.z)];			  		
-					portal2_obj.setposition(p);
-				  	portal2[1] = -(bullet_array[k].direction);
-				  	portal2[0] = 1;
-				  	
-				  }		  
-			  }  
-			} 
 			adel(bullet_array, k);
 		}
 		else
 			bullet_array[k].draw_bullet();
 	}
-	if (portal1[0] == 1)
-	    portal1_obj.draw();
+	
+	if (portal1 == 1)
+	{	
+		portal1_obj.draw();
+	}
 	    
-	if (portal2[0] == 1)
-	    portal2_obj.draw();
+	    
+	if (portal2 == 1)
+	{
+		portal2_obj.draw();
+	}
 }
 
 function player::setposition(pos)
@@ -578,7 +566,6 @@ function player::collision_check(fl, ang)
 	// Collision detection has to also check beside the avatar
 	pos_l += (dirleft * step * run);
 	pos_r -= (dirleft * step * run);
-	trace(dirfront, dirleft);
 	if (fl == 1)
 	{
 		pos_ol += (diroblique_l * step * run);
@@ -698,4 +685,35 @@ function player::finding_orientation(pos)
 		
 		
 	return ret;
+}
+
+function player::warp_check()
+{
+	
+	if (portal1 == 1 && portal2 == 1)
+	{
+		var p1x = int(portal1_obj.getposition().x);
+		var p1z = int(portal1_obj.getposition().z);
+		var p2x = int(portal2_obj.getposition().x);
+		var p2z = int(portal2_obj.getposition().z);
+		var teleport = 0;
+		trace(oldposition,position, p1x, p1z, p2x, p2z);
+		
+		if (int(oldposition.x) == p1x && int(oldposition.z) == p1z)
+		{
+			position = portal2_obj.getposition();
+			teleport = 1;
+		}	
+		else if (int(oldposition.x) == p2x && int(oldposition.z) == p2z)
+		{
+			position = portal1_obj.getposition();
+			teleport = 1;
+		}
+		if (teleport == 1)
+		{
+			portal1 = 0;
+			portal2 = 0;
+		}
+		trace(position);
+	}		
 }
