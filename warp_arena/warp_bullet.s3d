@@ -1,5 +1,4 @@
 //minimum time to shoot between frames
-#include "warp_globals.s3d"
 #define min_shot  50
 
 class bullet
@@ -15,14 +14,14 @@ class bullet
 	var bull_id;
 	var tipo;
 	
-	init(pos, dir, type, id);
+	init(pos, dir, lvl_matrix, type, id);
 	update();
 	draw_bullet();
 };
 
-function bullet::init(pos, dir, type, id)
+function bullet::init(pos, dir, lvl_matrix, type, id)
 {
-	matrix = level_matrix;
+	matrix = lvl_matrix;
 	position  = pos + [0, 1, 0];
 	bull_id = id;
 	tipo = type;
@@ -78,20 +77,6 @@ function bullet::update()
 		hit_fg = True;
 	else	
 		obj.SetPosition(position);
-
-//   foreach(var t in obj_array)
-//   {
-//   	hit_fg = t.iscollidingBBox(obj);
-//   	var g = t.getposition();
-//   	trace(hit_fg, g, position);
-//   	
-//   	
-//   	if (hit_fg)
-//   	   break;
-//   }
-//   
-//   if (hit_fg == false)
-//   	obj.SetPosition(position);
 }
 
 function bullet::draw_bullet()
