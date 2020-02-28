@@ -312,7 +312,6 @@ function OnTimer()
 	
 	if (received_data != null)
 	{
-		var k;
 		switch (received_data[0])
 		{
 			case CONNECTION_REQUEST :
@@ -326,7 +325,12 @@ function OnTimer()
 				{
 					ack = player_spawn();
 					mySend(address1, CLIENT_PORT, ack);
-					trace(ack);
+					var msg = "SERVER: A new player entered the arena in position: ";
+					var msg2 = ", and with id ";
+					trace(msg);
+					var p_pos = ack[1];
+					var p_id = ack[2];
+					trace(msg, p_pos, msg2, p_id);
 
 					new_ip = array(2);
 					new_ip[0] = ack[2];
@@ -458,8 +462,6 @@ function OnTimer()
 				break;
 				
 			case KILL_SCORE :
-				k = "ok";
-				trace(k);
 				foreach (var t in players_ip)
 						mySend(t[1], CLIENT_PORT, received_data);
 				break;

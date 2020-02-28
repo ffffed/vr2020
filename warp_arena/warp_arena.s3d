@@ -21,7 +21,7 @@
 #include "warp_enemy.s3d"
 #include "warp_supplies.s3d"
 //client/server defines
-#define SERVER_IP 		"192.168.43.133"
+#define SERVER_IP 		"192.168.1.31"
 #define SERVER_PORT		50023
 #define CLIENT_PORT		50025
 
@@ -208,7 +208,6 @@ function OnInit(params)
 			lastsend = GetTime();
 		}
 		rcv_data = NetVarReceiveFrom(net_channel, &address1);
-		trace(rcv_data);
 		
 		rcv = (rcv_data != null && rcv_data[0] == CONNECTION_OK) ?
 			true : rcv;
@@ -217,9 +216,7 @@ function OnInit(params)
 			var y = "The game has started, retry later!";
 			trace(y);
 			window.Quit();
-		}
-		trace(rcv);
-		
+		}	
 		
 	} while (rcv == true);
 	
@@ -363,13 +360,9 @@ function OnFrame()
 		t[1].position += t[1].direction * t[1].speed;
 		t[1].obj.setPosition(t[1].position);
 		t[1].draw_bullet();
-		//var p = myplayer.obj.iscollidingbbox(t[1].obj);
 		var p = myplayer.cylinder.iscollidingbbox(t[1].obj);
-		//var p = myplayer.obj.isColliding(t[1].position, t[1].position + t[1].direction);
-		trace(p,t);
 		if (p == true)
 		{
-			trace(p);
 			var player_bullet = array(3);
 			player_bullet[0] = BULLET_ON_PERSON;
 			player_bullet[1] = t[0];
@@ -462,7 +455,6 @@ function OnTimer()
 		switch (received_data[0])
 		{
 			case NEW_PLAYER :
-				trace(received_data);
 				myenemy = enemy();
 				myenemy.init(received_data[2], received_data[3], received_data[1]);
 				aadd(players, myenemy);
@@ -543,11 +535,8 @@ function OnTimer()
 				for(var k = 0; k < len(enemy_bullets); k++)
 				{
 					if ( (enemy_bullets[k][0] == received_data[1]) 
-						&& (enemy_bullets[k][1].bull_id == received_data[2]) ) 
-					{
-						trace(k);
+						&& (enemy_bullets[k][1].bull_id == received_data[2]) )
 						adel(enemy_bullets, k);
-					}
 				}
 				break;
 				
@@ -568,11 +557,8 @@ function OnTimer()
 				for(var k = 0; k < len(enemy_bullets); k++)
 					{
 						if ( (enemy_bullets[k][0] == received_data[1]) 
-							&& (enemy_bullets[k][1].bull_id == received_data[2]) ) 
-						{
-							trace(k);
+							&& (enemy_bullets[k][1].bull_id == received_data[2]) )
 							adel(enemy_bullets, k);
-						}
 					}
 				}
 				else
