@@ -50,6 +50,7 @@ class status
 	var life;
 	var myWeapon;
 	var heal_fg;
+	var damage_fg;
 	var curr_life;
 	var map_matrix;
 	var counter_x;
@@ -60,17 +61,23 @@ class status
 	var p_map_x; //temporary position counter on x axis for the drawing of the minimap
 	var p_map_y; //temporary position counter on y axis for the drawing of the minimap
 	
+	var life_fx;
+	var bullets_fx;
+	
 	init();
 	update(position, view, w_type, n_bullets);
 	draw(position, view, w_type, n_bullets);
 	recharge(type);
 	heal();
+	bullet_damage(type);
+	damage();
 };
 
 function status::init()
 {
 	life = 0.4;
 	heal_fg = 0;
+	damage_fg = 0;
 	curr_life = life;
 	map_matrix = array(0);
 	counter_x = -mapStepX;
@@ -87,6 +94,9 @@ function status::init()
 	w_size.x /= 1723;
 	w_size.y /= 1043;
 	draw([19, 0, 4], 1, 0, 10);
+	
+	life_fx  = CVmVRAWAV("life.wav");
+	bullets_fx  = CVmVRAWAV("bullets.wav");
 }
 
 //hit = 0 if the player has not been shot, 0.1 if shot with gun, 0.5 if shot with railgun
@@ -96,6 +106,7 @@ function status::update(position, view, w_type, n_bullets)
 	w_size.x /= 1723;
 	w_size.y /= 1043;
 	heal();
+	damage();
 	draw(position, view, w_type, n_bullets);
 }
 
@@ -210,10 +221,12 @@ function status::recharge(type)
 		case 1 :
 			heal_fg = 1;
 			curr_life = life + 0.5;
+			life_fx.play();
 			break;
 		
 		case 2 :
 			myWeapon.n_bullets_rg = 10;
+			bullets_fx.play();
 			break;
 		
 		default :
@@ -222,8 +235,38 @@ function status::recharge(type)
 
 function status::heal()
 {
-	if ((heal_fg == 1) && (life < curr_life))
+	if ((heal_fg == 1) && (life <= curr_life))
 		life += 0.01;
 	else
 		heal_fg = 0;
+}
+
+function status::bullet_damage(type)
+{
+	switch (type)
+	{
+		case 0 :
+			damage_fg = 1;
+			curr_life = life - 0.1;
+			break;
+			
+		case 1 : 
+			damage_fg = 1;
+			curr_life = life - 0.5;
+			break;
+		
+		default :
+	}
+	if (curr_life <= 0)
+		return true;
+	else
+		return false;
+}
+
+function status::damage()
+{
+	if ((damage_fg == 1) && (life >= curr_life))
+		life -= 0.01;
+	else
+		damage_fg = 0;
 }

@@ -21,7 +21,7 @@
 #include "warp_enemy.s3d"
 #include "warp_supplies.s3d"
 //client/server defines
-#define SERVER_IP 		"172.100.15.231"
+#define SERVER_IP 		"192.168.137.187"
 #define SERVER_PORT		50023
 #define CLIENT_PORT		50025
 
@@ -84,6 +84,8 @@
 #define OLD_AMMO				(10)
 #define SHOT_PDU				(11)
 #define BULLET_ON_WALL			(12)
+#define DEAD_PLAYER				(13)
+#define BULLET_ON_PERSON		(14)
 
 #define connection_retry 		500
 
@@ -118,6 +120,8 @@ var angle; //new direction to check
 var old_weapon; //used to check weather the weapon has changed
 var enemy_bullets;
 
+var welcome_fx;
+
 var address1;
 var arr;
 
@@ -138,6 +142,7 @@ function OnDownload()
 
 function OnInit(params)
 {
+	welcome_fx  = CVmVRAWAV("welcome.wav");
 	obstacle_array = array(0);
 	/* initialize camera */
 	CameraGetCurrent().SetPosition(CamPos);
@@ -213,8 +218,17 @@ function OnInit(params)
 	myplayer = player();
 	myplayer.init([1, 1, 1], rcv_data[2]);
 	myplayer.setposition(rcv_data[1]);
+	welcome_fx.play();
 	
 	SetTimeStep(1);
+}
+
+function OnExit()
+{
+	var exit_pdu = array(2);
+	exit_pdu[0] = PLAYER_EXIT;
+	exit_pdu[1] = myplayer.id;
+	mySend(SERVER_IP, SERVER_PORT, exit_pdu);
 }
 
 function OnFrame()
@@ -239,6 +253,7 @@ function OnFrame()
 			wall_bullet[1] = myplayer.id;
 			wall_bullet[2] = myplayer.bullet_array[k].bull_id;
 			mySend(SERVER_IP, SERVER_PORT, wall_bullet);
+			adel(myplayer.bullet_array, k);
 		}
 	}
 	
@@ -326,12 +341,34 @@ function OnFrame()
 		
 	foreach (var t in arr_supplies)
 		t.draw_box();
-	
+
 	foreach (var t in enemy_bullets)
 	{
 		t[1].position += t[1].direction * t[1].speed;
 		t[1].obj.setPosition(t[1].position);
 		t[1].draw_bullet();
+		var p = myplayer.obj.isColliding(t[1].position, t[1].position + t[1].direction);
+		if (p == true)
+		{
+			var player_bullet = array(3);
+			player_bullet[0] = BULLET_ON_PERSON;
+			player_bullet[1] = t[0];
+			player_bullet[2] = t[1].bull_id;
+			mySend(SERVER_IP, SERVER_PORT, player_bullet);	
+		}
+		
+		var hit = myplayer.mystatus.bullet_damage(t[1].tipo);
+		if (hit == true)
+		{
+			var dead_pdu = array(3);
+			dead_pdu[0] = DEAD_PLAYER;
+			dead_pdu[1] = myplayer.id; //giocatore morto
+			dead_pdu[2] = t[0];
+			mySend(SERVER_IP, SERVER_PORT, dead_pdu);
+			
+			OnExit();
+			Quit();
+		}
 	}
 		
 	SceneEnd();
@@ -484,6 +521,35 @@ function OnTimer()
 				}
 				break;
 				
+			case DEAD_PLAYER :
+				for (var t = 0; t < len(players); t++)
+					if (players[t].id == received_data[1])
+							adel(players, t);
+				break;
+				
+			case BULLET_ON_PERSON :
+				if (received_data[1] != myplayer.id)
+				{
+				for(var k = 0; k < len(enemy_bullets); k++)
+					{
+						if ( (enemy_bullets[k][0] == received_data[1]) 
+							&& (enemy_bullets[k][1].bull_id == received_data[2]) ) 
+						{
+							trace(k);
+							adel(enemy_bullets, k);
+						}
+					}
+				}
+				else
+					for(var k = 0; k < len(myplayer.bullet_array); k++)
+					{
+						if ( myplayer.bullet_array[k].bull_id == received_data[2] ) 
+							
+							adel(myplayer.bullet_array, k);
+					}
+					
+				break;
+				
 			default :
 		}
 	}
@@ -496,15 +562,6 @@ function OnEvent(eventID, wparam, lparam){
 
 function OnError(){
 	// TODO: put your errors handling code here
-}
-
-
-function OnExit()
-{
-	var exit_pdu = array(2);
-	exit_pdu[0] = PLAYER_EXIT;
-	exit_pdu[1] = myplayer.id;
-	mySend(SERVER_IP, SERVER_PORT, exit_pdu);
 }
 
 // Camera manager (using mouse)

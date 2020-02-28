@@ -19,7 +19,7 @@
 
 #define rocket   0
 #define railgun  1
-#define warp     2
+//#define warp     2
 
 class weapon
 {
@@ -57,9 +57,9 @@ function weapon::update(type)
 	}
 	if(type == rocket)
 		ret = true;
-		
+	/*	
 	if(type == warp)
 	    ret = true;
-	   
+	  */ 
 	return ret;
 }

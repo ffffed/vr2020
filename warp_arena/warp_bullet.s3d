@@ -49,7 +49,7 @@ function bullet::init(pos, dir, lvl_matrix, type, id)
 			obj.SetPosition(position);
 			mesh.ModulateMaterials(0, 0, 0, 1);
 			break;
-		
+		/*
 		case 2 :
 			mesh = CVMNewMesh(VRP_SPHERE);
 			mesh.Scale(0.02);	
@@ -59,7 +59,7 @@ function bullet::init(pos, dir, lvl_matrix, type, id)
 			obj.SetPosition(position);
 			mesh.ModulateMaterials(0, 0, 0.4, 1);
 			break;
-	
+		*/
 		default :
 	}
 
@@ -73,7 +73,7 @@ function bullet::update()
   	var j = int(position.x);
    	var hit = matrix[i][j];
    
-	if (hit > position.y)
+	if (hit > int(position.y))
 		hit_fg = True;
 	else	
 		obj.SetPosition(position);

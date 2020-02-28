@@ -35,6 +35,8 @@ class player
 	var weapon_mesh0;
 	var weapon_mesh1;
 	var weapon_mesh2;
+	var portal_txt;
+	var portal_mtr;
 	var portal_mesh;
 	
 	
@@ -137,9 +139,13 @@ function player::init(col, my_id)
 	weapon_mesh2 = CVMNewMesh("rocketl.aam");
 	weapon_mesh2.scale(sf1);
 	weapon_mesh2.ModulateMaterials(0, 0, 1, 1);
-	portal_mesh = CVMNewMesh(VRP_BOX);
-	portal_mesh.ModulateMaterials(0.0,0.0,1,1);
-	portal_mesh.scale(0.5,2,0.5);
+	portal_txt = CVmTexture("metalwall1.png");
+	portal_mtr = CVmMaterial();
+	portal_mtr.SetTexture(portal_txt);
+	portal_mtr.ChangeTextureParams(VR_V_TILING, 1);
+	portal_mesh = CVMNewMesh(VRP_CYLINDER);
+	portal_mesh.SetMaterial(portal_mtr);
+	portal_mesh.scale(2, 0.05, 2);
 	
 	lower_obj = CVmObj(lower_mesh);
 	upper_obj = CVmObj(upper_mesh);
@@ -205,6 +211,9 @@ function player::update()
 {   
 	oldposition = position;
 	oldCamPos = CamPos;
+	
+	for(var k = 0; k < len(bullet_array); k++)
+		bullet_array[k].update();
      
 	// Corsa
 	if (keypressed(VK_SHIFT))
@@ -406,7 +415,7 @@ function player::update()
 		curr_weapon = 1;
 		mystatus.myWeapon.swap(curr_weapon);
 	}
-	
+	/*
 	if (keypressed("L"))
 	{ 
 		obj.RemoveChild(weapon_obj);
@@ -415,6 +424,7 @@ function player::update()
 		curr_weapon = 2;
 		mystatus.myWeapon.swap(curr_weapon);
 	}
+	*/
 	
 	if (keypressed ("M"))
 	{
@@ -431,14 +441,10 @@ function player::update()
 	}
 	
 	
-warp_check();
-setrotation(angle);
-setposition(position);
-CameraGetCurrent().SetPosition(CamPos);
-
-	for(var k = 0; k < len(bullet_array); k++)
-		bullet_array[k].update();
-
+	warp_check();
+	setrotation(angle);
+	setposition(position);
+	CameraGetCurrent().SetPosition(CamPos);
 
 	//updates camera focal point
 	CameraGetCurrent().SetTarget(position.x+sin(angle)*(distance+3), 
@@ -463,25 +469,14 @@ function player::draw()
 		obj.draw(VR_FRAMENUMBER, 1);
 		
 	for(var k = 0; k < len(bullet_array); k++)
-	{
-		if (bullet_array[k].hit_fg == true)
-		{
-			adel(bullet_array, k);
-		}
-		else
 			bullet_array[k].draw_bullet();
-	}
 	
 	if (portal1 == 1)
-	{	
 		portal1_obj.draw();
-	}
 	    
 	    
 	if (portal2 == 1)
-	{
 		portal2_obj.draw();
-	}
 }
 
 function player::setposition(pos)
@@ -610,7 +605,7 @@ function player::collision_check(fl, ang)
 	var inside_or = level_matrix[i_or][j_or];
 
 	/* Muro a sinistra */
-	if ( (inside_l > (j_count+position.y)) && (inside_ol > (j_count+position.y)) )
+	if ( (inside_l > (0.5 + position.y)) && (inside_ol > (0.5 + position.y)) )
 	{  
 		if ( (i_l == i_ol) && (j != j_old))
       {
@@ -626,7 +621,7 @@ function player::collision_check(fl, ang)
       }
     }
 	/*Muro a destra */
-	if ( (inside_r > (j_count+position.y)) && (inside_or > (j_count+position.y)) )
+	if ( (inside_r > (0.5 + position.y)) && (inside_or > (0.5 + position.y)) )
 	{  // Non fare nulla se sono concordi (dirleft x e z)
 		if ( (i_r == i_or) && (i == i_old) )
       {
@@ -640,7 +635,7 @@ function player::collision_check(fl, ang)
 			CamPos.x = oldCampos.x;
       }
 	}
-	if (inside > (j_count+position.y) )
+	if (inside > (0.5 + position.y) )
 	{
 		position.x = oldposition.x;
 		position.z = oldposition.z;
