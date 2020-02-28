@@ -21,7 +21,7 @@
 #include "warp_enemy.s3d"
 #include "warp_supplies.s3d"
 //client/server defines
-#define SERVER_IP 		"192.168.137.187"
+#define SERVER_IP 		"192.168.43.133"
 #define SERVER_PORT		50023
 #define CLIENT_PORT		50025
 
@@ -71,7 +71,7 @@
  * BULLET_ON_WALL: notifies all players that a      *
  * bullet has hit a wall, in order to delete it.    *
  ****************************************************/
-#define CONNECTION_REQUEST	(0)
+#define CONNECTION_REQUEST		(0)
 #define CONNECTION_OK			(1)
 #define POSITION_PDU			(2)
 #define NEW_PLAYER				(3)
@@ -86,6 +86,11 @@
 #define BULLET_ON_WALL			(12)
 #define DEAD_PLAYER				(13)
 #define BULLET_ON_PERSON		(14)
+#define SERVER_BUSY				(15)
+#define CHANGED_SCORE			(16)
+#define NEW_SCORE				(17)
+#define OLD_SCORES				(18)
+#define KILL_SCORE				(19)
 
 #define connection_retry 		500
 
@@ -110,6 +115,7 @@ var myplayer;
 var mysupply;
 var mybox;
 var arr_supplies;
+var score_array;
 
 var net_channel;
 var players;
@@ -119,7 +125,7 @@ var old_angle; //old direction to check
 var angle; //new direction to check
 var old_weapon; //used to check weather the weapon has changed
 var enemy_bullets;
-
+var window;
 var welcome_fx;
 
 var address1;
@@ -142,6 +148,7 @@ function OnDownload()
 
 function OnInit(params)
 {
+	window = CVmWebBrowser();
 	welcome_fx  = CVmVRAWAV("welcome.wav");
 	obstacle_array = array(0);
 	/* initialize camera */
@@ -205,7 +212,15 @@ function OnInit(params)
 		
 		rcv = (rcv_data != null && rcv_data[0] == CONNECTION_OK) ?
 			true : rcv;
+		if (rcv_data != null && rcv_data[0] == SERVER_BUSY)
+		{
+			var y = "The game has started, retry later!";
+			trace(y);
+			window.Quit();
+		}
 		trace(rcv);
+		
+		
 	} while (rcv == true);
 	
 	old_pos = rcv_data[1];
@@ -214,6 +229,7 @@ function OnInit(params)
 	angle = 0;
 	
 	arr_supplies = array(0);
+	score_array = array(0);
 	
 	myplayer = player();
 	myplayer.init([1, 1, 1], rcv_data[2]);
@@ -347,27 +363,35 @@ function OnFrame()
 		t[1].position += t[1].direction * t[1].speed;
 		t[1].obj.setPosition(t[1].position);
 		t[1].draw_bullet();
-		var p = myplayer.obj.isColliding(t[1].position, t[1].position + t[1].direction);
+		//var p = myplayer.obj.iscollidingbbox(t[1].obj);
+		var p = myplayer.cylinder.iscollidingbbox(t[1].obj);
+		//var p = myplayer.obj.isColliding(t[1].position, t[1].position + t[1].direction);
+		trace(p,t);
 		if (p == true)
 		{
+			trace(p);
 			var player_bullet = array(3);
 			player_bullet[0] = BULLET_ON_PERSON;
 			player_bullet[1] = t[0];
 			player_bullet[2] = t[1].bull_id;
 			mySend(SERVER_IP, SERVER_PORT, player_bullet);	
-		}
-		
-		var hit = myplayer.mystatus.bullet_damage(t[1].tipo);
-		if (hit == true)
-		{
-			var dead_pdu = array(3);
-			dead_pdu[0] = DEAD_PLAYER;
-			dead_pdu[1] = myplayer.id; //giocatore morto
-			dead_pdu[2] = t[0];
-			mySend(SERVER_IP, SERVER_PORT, dead_pdu);
-			
-			OnExit();
-			Quit();
+			var hit = myplayer.mystatus.bullet_damage(t[1].tipo);
+			if (hit == true)
+			{
+				var dead_pdu = array(3);
+				dead_pdu[0] = DEAD_PLAYER;
+				dead_pdu[1] = myplayer.id; //giocatore morto
+				dead_pdu[2] = t[0];
+				mySend(SERVER_IP, SERVER_PORT, dead_pdu);
+				
+				var k_score = array(2);
+				k_score[0] = KILL_SCORE;
+				k_score[1] = t[0];
+				mySend(SERVER_IP, SERVER_PORT, k_score);
+				
+				OnExit();
+				window.Quit();
+			}
 		}
 	}
 		
@@ -434,6 +458,7 @@ function OnTimer()
 	{
 		var enemyBull;
 		var placeholder;
+		var p;
 		switch (received_data[0])
 		{
 			case NEW_PLAYER :
@@ -447,6 +472,11 @@ function OnTimer()
 	 			for (var t = 0; t < len(players); t++)
 					if (players[t].id == received_data[1])
 						adel(players, t);
+				for (var t = 0; t < len(score_array); t++)
+				{
+					if (score_array[t][0] == received_data[1])
+						adel(score_array, t);
+				}
 				break;
 				
 			case OLD_PLAYERS :
@@ -525,6 +555,11 @@ function OnTimer()
 				for (var t = 0; t < len(players); t++)
 					if (players[t].id == received_data[1])
 							adel(players, t);
+				for (var t = 0; t < len(score_array); t++)
+				{
+					if (score_array[t][0] == received_data[1])
+						adel(score_array, t);
+				}
 				break;
 				
 			case BULLET_ON_PERSON :
@@ -547,7 +582,23 @@ function OnTimer()
 							
 							adel(myplayer.bullet_array, k);
 					}
-					
+				break;
+			
+			case OLD_SCORES : 
+				score_array = received_data[1];
+				break;
+				
+			case NEW_SCORE :
+				p = array(2);
+				p[0] = received_data[1];
+				p[1] = received_data[2];
+				aadd(score_array, p);
+				break;
+				
+			case KILL_SCORE :
+				for (var t = 0; t < len(score_array); t++)
+					if (score_array[t][0] == received_data[1])
+						score_array[t][1] += 1;
 				break;
 				
 			default :

@@ -95,6 +95,8 @@ class player
 	var id; //unique id given by the server
 	var shot_flag; //used from client to check if a bullet has been shot
 	var bullet_id;
+	var cylinder;
+	var cylinder_mesh;
 
 	init(col, my_id);
 	draw();
@@ -128,6 +130,7 @@ function player::init(col, my_id)
 	shot_flag = 0;
 	bullet_id = 0;
   
+  	
 	lower_mesh = CVmNewMesh("swat_lower.aam");
 	var sf1 = lower_mesh.normalize(1);
 	upper_mesh = CVmNewMesh("swat_upper.aam");
@@ -139,6 +142,9 @@ function player::init(col, my_id)
 	weapon_mesh2 = CVMNewMesh("rocketl.aam");
 	weapon_mesh2.scale(sf1);
 	weapon_mesh2.ModulateMaterials(0, 0, 1, 1);
+	cylinder_mesh = CVMNewMesh(VRP_CYLINDER);
+  	cylinder_mesh.scale(0.8, 1.4, 0.8);
+	cylinder_mesh.ModulateMaterials(0, 0, 0, 0);
 	portal_txt = CVmTexture("metalwall1.png");
 	portal_mtr = CVmMaterial();
 	portal_mtr.SetTexture(portal_txt);
@@ -152,6 +158,7 @@ function player::init(col, my_id)
 	weapon_obj = CVmObj(weapon_mesh0);
 	portal1_obj = CVmObj(portal_mesh);
 	portal2_obj = CVmObj(portal_mesh);
+	cylinder = CVmObj(cylinder_mesh);
 	
 	
 	obj = CVmObj();
@@ -467,7 +474,8 @@ function player::draw()
 		obj.draw(VR_FRAMENUMBER, current_frame);
 	else
 		obj.draw(VR_FRAMENUMBER, 1);
-		
+	cylinder.draw();
+	
 	for(var k = 0; k < len(bullet_array); k++)
 			bullet_array[k].draw_bullet();
 	
@@ -483,6 +491,7 @@ function player::setposition(pos)
 {
 	position = pos;
 	obj.setposition(position); //sets players position
+	cylinder.setposition(position);
 	pos_l = position;
 	pos_r = position;
 	pos_ol = position;

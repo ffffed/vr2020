@@ -14,6 +14,7 @@
 #define SERVER_PORT		50023
 #define CLIENT_PORT		50025
 #define SPAWN_TIME		5000
+#define MAX_PLAYERS		4
 
 /****************************************************
  *                     |PDUs|                       *
@@ -76,6 +77,11 @@
 #define BULLET_ON_WALL			(12)
 #define DEAD_PLAYER				(13)
 #define BULLET_ON_PERSON		(14)
+#define SERVER_BUSY				(15)
+#define CHANGED_SCORE			(16)
+#define NEW_SCORE				(17)
+#define OLD_SCORES				(18)
+#define KILL_SCORE				(19)
 
 var net_channel;
 // PLAYER_ARRAY = [NEW_PLAYER, player_id, position, angle, current_weapon]
@@ -94,6 +100,7 @@ var posD;
 var posE;
 var pos_arr;
 var start_time;
+var score_array;
 
 function OnDownload()
 {
@@ -116,6 +123,7 @@ function OnInit()
 
 	players = array(0);
 	players_ip = array(0);
+	score_array = array(0);
 	id = 0;
 	
 	start_time = GetTime();
@@ -308,42 +316,70 @@ function OnTimer()
 		switch (received_data[0])
 		{
 			case CONNECTION_REQUEST :
-				ack = player_spawn();
-				mySend(address1, CLIENT_PORT, ack);
-				trace(ack);
-
-				new_ip = array(2);
-				new_ip[0] = ack[2];
-				new_ip[1] = address1;
-				aadd(players_ip, new_ip);	
-
-				if (len(players) > 0)
+				if (len(players) >= MAX_PLAYERS)
 				{
-					var old_players_arr = array(2);
-					old_players_arr[0] = OLD_PLAYERS;
-					old_players_arr[1] = players;
-					mySend(address1, CLIENT_PORT, old_players_arr);
+					var refused_pdu = array(1);
+					refused_pdu[0] = SERVER_BUSY;
+					mySend(address1, CLIENT_PORT, refused_pdu);
 				}
+				else
+				{
+					ack = player_spawn();
+					mySend(address1, CLIENT_PORT, ack);
+					trace(ack);
+
+					new_ip = array(2);
+					new_ip[0] = ack[2];
+					new_ip[1] = address1;
+					aadd(players_ip, new_ip);	
+
+					if (len(players) > 0)
+					{
+						var old_players_arr = array(2);
+						old_players_arr[0] = OLD_PLAYERS;
+						old_players_arr[1] = players;
+						mySend(address1, CLIENT_PORT, old_players_arr);
+					}
 				
-				if (len(arr_supplies) > 0)
-				{
-					var old_arr_supply = array(2);
-					old_arr_supply[0] = OLD_AMMO;
-					old_arr_supply[1] = arr_supplies;
-					mySend(address1, CLIENT_PORT, old_arr_supply);
-				}
+					if (len(arr_supplies) > 0)
+					{
+						var old_arr_supply = array(2);
+						old_arr_supply[0] = OLD_AMMO;
+						old_arr_supply[1] = arr_supplies;
+						mySend(address1, CLIENT_PORT, old_arr_supply);
+					}
+					
+					var nsc = array(2);
+					nsc[0] = id;
+					nsc[1] = 0;
+					aadd(score_array, nsc);
+					
+					var new_sc = array(2);
+					new_sc[0] = OLD_SCORES;
+					new_sc[1] = score_array;
+					mySend(address1, CLIENT_PORT, new_sc);
 			
-				player = array(5);
-				player[0] = NEW_PLAYER;
-				player[1] = ack[2];
-				player[2] = ack[1];
-				player[3] = 0; //angle
-				player[4] = 0; //starting weapon
-				aadd(players, player);
+					player = array(5);
+					player[0] = NEW_PLAYER;
+					player[1] = ack[2];
+					player[2] = ack[1];
+					player[3] = 0; //angle
+					player[4] = 0; //starting weapon
+					aadd(players, player);
 			
-				foreach (var t in players_ip)
-					if (ack[2] != t[0])
-						mySend(t[1], CLIENT_PORT, player);				
+					foreach (var t in players_ip)
+						if (ack[2] != t[0])
+							mySend(t[1], CLIENT_PORT, player);
+							
+					var nsc2 = array(3);
+					nsc2[0] = NEW_SCORE;
+					nsc2[1] = id;
+					nsc2[2] = 0;	
+					
+					foreach (var t in players_ip)
+						if (ack[2] != t[0])
+							mySend(t[1], CLIENT_PORT, nsc2);
+				}			
 				break;
 				
 			case CHANGE_WEAPON :
@@ -365,6 +401,11 @@ function OnTimer()
 						adel(players_ip, t);
 						delete_player(exit_id);
 					}
+				}
+				for (var t = 0; t < len(score_array); t++)
+				{
+					if (score_array[t][0] == exit_id)
+						adel(score_array, t);
 				}
 				break;
 			
@@ -404,15 +445,25 @@ function OnTimer()
 							adel(players, t);
 							adel(players_ip, t);
 						}
+				for (var t = 0; t < len(score_array); t++)
+				{
+					if (score_array[t][0] == received_data[1])
+						adel(score_array, t);
+				}
 				break;	
 				
 			case BULLET_ON_PERSON :
+				foreach (var t in players_ip)
+						mySend(t[1], CLIENT_PORT, received_data);
+				break;
+				
+			case KILL_SCORE :
 				k = "ok";
 				trace(k);
 				foreach (var t in players_ip)
 						mySend(t[1], CLIENT_PORT, received_data);
 				break;
-				
+			
 			default :
 		}
 	}
