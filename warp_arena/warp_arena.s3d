@@ -29,47 +29,83 @@
  *                     |PDUs|                       *
  *--------------------------------------------------*
  *                                                  *
- * CONNECTION_REQUEST: sent by a player that wants  *
- * to join a game.                                  *
+ * (0)CONNECTION_REQUEST: sent by a player that     *
+ * wants to join a game.                            *
  *                                                  *
- * CONNECTION_OK: sent by the serve once the request*
- * is accepted.                                     *
+ * (1)CONNECTION_OK: sent by the serve once the     *
+ * request is accepted.                             *
  *                                                  *
- * POSITION_PDU: sent by a player once it changes   *
+ * (2)POSITION_PDU: sent by a player once it changes*
  * his ange or his position. It is entirely sent to *
  * each other player in the game.                   *
  *                                                  *
- * NEW_PLAYER: sent by the server to all players to *
- * notificate a new player has entered the arena.   *
+ * (3)NEW_PLAYER: sent by the server to all players *
+ * to notificate a new player has entered the arena.*
  *                                                  *
- * OLD_PLAYERS: once a player has entered a game,   *
+ * (4)OLD_PLAYERS: once a player has entered a game,*
  * the server informs him about the players that are*
  * already playing.                                 *
  *                                                  *
- * PLAYER_EXIT: used by a player to notificate he is*
- * quitting the game.                               *
+ * (5)PLAYER_EXIT: used by a player to notificate he*
+ * is quitting the game.                            *
  *                                                  *
- * EXIT_NOTIFICATION: used by the server to inform  *
- * all players that another one has left the game.  *
+ * (6)EXIT_NOTIFICATION: used by the server to      *
+ * inform all players that another one has left the *
+ * game.                                            *
  *                                                  *
- * CHANGE_WEAPON: sent by a client once he changes  *
- * weapon. It is sent as it is from the server to   *
- * all clients.                                     *
+ * (7)CHANGE_WEAPON: sent by a client once he       *
+ * changes weapon. It is sent as it is from the     *
+ * server to all clients.                           *
  *                                                  *
- * NEW_AMMO: a new life or ammonition box has       *
+ * (8)NEW_AMMO: a new life or ammonition box has    *
  * entered the arena!                               *
  *                                                  *
- * COLLECTED_AMMO: notifies all players that the    *
+ * (9)COLLECTED_AMMO: notifies all players that the *
  * ammonition box is no more available.             *
  *                                                  *
- * OLD_AMMO: passed to players when they enter the  *
- * arena. It is a vector containing all the         *
+ * (10)OLD_AMMO: passed to players when they enter  *
+ * the arena. It is a vector containing all the     *
  * currently spawned boxes on the map.              *
  *                                                  *
- * SHOT_PDU: notifies that a player shot a bullet.  *
+ * (11)SHOT_PDU: notifies that a player shot a      *
+ * bullet.                                          *
  *                                                  *
- * BULLET_ON_WALL: notifies all players that a      *
+ * (12)BULLET_ON_WALL: notifies all players that a  *
  * bullet has hit a wall, in order to delete it.    *
+ *                                                  *
+ * (13)DEAD_PLAYER: notifies all players that       *
+ * another one has died in order to take the proper *
+ * actions.                                         *
+ *                                                  *
+ * (14)BULLET_ON_PERSON: when a player is hit by a  *
+ * bullet, then this information must be given to   *
+ * all the other players in order to let them delete*
+ * the bullet.                                      *
+ *                                                  *
+ * (15)SERVER_BUSY: if the maximum number of players*
+ * has been reached, then the connection request is *
+ * discarded.                                       *
+ *                                                  *
+ * (16)NEW_SCORE: once a player connects to the game*
+ * a new message containing his id and his score (0)*
+ * is sent to everyone.                             *
+ *                                                  *
+ * (17)OLD_SCORES: sent by the server in order to   *
+ * let new players update their score of existing   *
+ * players once they connect.                       *
+ *                                                  *
+ * (18)KILL_SCORE: once a player dies, all the      *
+ * scores must be updated, therefore the server will*
+ * send the dead players id and the relative bullet *
+ * in order to update correctly.                    *
+ *                                                  *
+ * (19) CONNECTION_ACK: sent by a client when it    *
+ * successfully connects to the server. It is used  *
+ * for a correct synchronization.                   *
+ *                                                  *
+ * (20) EXIT_ACK: sent by the server to the client. *
+ * It is used to ensure a correct exit from the     *
+ * game.                                            *
  ****************************************************/
 #define CONNECTION_REQUEST		(0)
 #define CONNECTION_OK			(1)
@@ -87,12 +123,13 @@
 #define DEAD_PLAYER				(13)
 #define BULLET_ON_PERSON		(14)
 #define SERVER_BUSY				(15)
-#define CHANGED_SCORE			(16)
-#define NEW_SCORE				(17)
-#define OLD_SCORES				(18)
-#define KILL_SCORE				(19)
+#define NEW_SCORE				(16)
+#define OLD_SCORES				(17)
+#define KILL_SCORE				(18)
+#define CONNECTION_ACK			(19)
+#define EXIT_ACK				(20)
 
-#define connection_retry 		500
+#define connection_retry 		200
 
 /* Set global scene parameters */
 SET SCENE_FOV  = 60;
@@ -220,6 +257,10 @@ function OnInit(params)
 		
 	} while (rcv == true);
 	
+	var conn_ack = array(1);
+	conn_ack[0] = CONNECTION_ACK;
+	mySend(SERVER_IP, SERVER_PORT, conn_ack);
+	
 	old_pos = rcv_data[1];
 	position = rcv_data[1];
 	old_angle = 0;
@@ -238,10 +279,27 @@ function OnInit(params)
 
 function OnExit()
 {
+	var exit_lastsend = getTime();
+	var exit_data;
+	var exit_rcv = false;
 	var exit_pdu = array(2);
 	exit_pdu[0] = PLAYER_EXIT;
 	exit_pdu[1] = myplayer.id;
 	mySend(SERVER_IP, SERVER_PORT, exit_pdu);
+	
+	do
+	{
+		if (GetTime() - exit_lastsend > connection_retry)
+		{
+			NetVarSendTo(SERVER_IP, SERVER_PORT, exit_pdu);
+			exit_lastsend = GetTime();
+		}
+		exit_data = NetVarReceiveFrom(net_channel, &address1);
+		
+		exit_rcv = (exit_data != null && exit_data[0] == EXIT_ACK) ?
+			true : exit_rcv;
+		
+	} while (exit_rcv == true);
 }
 
 function OnFrame()
@@ -330,7 +388,7 @@ function OnFrame()
 	old_pos = position;
 	old_angle = angle;
 	
-	myplayer.mystatus.update(myplayer.position, myplayer.view, myplayer.curr_weapon, myplayer.mystatus.myWeapon.n_bullets_rg);	
+	myplayer.mystatus.update(myplayer.position, myplayer.view, myplayer.curr_weapon, myplayer.mystatus.myWeapon.n_bullets_rg, score_array);	
 	mylevel.draw();
 	
 	//If I move my camera to first person, I'll hide the character and draw only the weapon.

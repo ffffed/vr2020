@@ -11,56 +11,93 @@
 #include <Script3d.h>
 #include "warp_player.s3d"
 
-#define SERVER_PORT		50023
-#define CLIENT_PORT		50025
-#define SPAWN_TIME		5000
-#define MAX_PLAYERS		4
+#define SERVER_PORT				50023
+#define CLIENT_PORT				50025
+#define SPAWN_TIME				5000
+#define MAX_PLAYERS				4
+#define MAX_CONNECTION_TIMEOUT	1000
 
 /****************************************************
  *                     |PDUs|                       *
  *--------------------------------------------------*
  *                                                  *
- * CONNECTION_REQUEST: sent by a player that wants  *
- * to join a game.                                  *
+ * (0)CONNECTION_REQUEST: sent by a player that     *
+ * wants to join a game.                            *
  *                                                  *
- * CONNECTION_OK: sent by the serve once the request*
- * is accepted.                                     *
+ * (1)CONNECTION_OK: sent by the serve once the     *
+ * request is accepted.                             *
  *                                                  *
- * POSITION_PDU: sent by a player once it changes   *
+ * (2)POSITION_PDU: sent by a player once it changes*
  * his ange or his position. It is entirely sent to *
  * each other player in the game.                   *
  *                                                  *
- * NEW_PLAYER: sent by the server to all players to *
- * notificate a new player has entered the arena.   *
+ * (3)NEW_PLAYER: sent by the server to all players *
+ * to notificate a new player has entered the arena.*
  *                                                  *
- * OLD_PLAYERS: once a player has entered a game,   *
+ * (4)OLD_PLAYERS: once a player has entered a game,*
  * the server informs him about the players that are*
  * already playing.                                 *
  *                                                  *
- * PLAYER_EXIT: used by a player to notificate he is*
- * quitting the game.                               *
+ * (5)PLAYER_EXIT: used by a player to notificate he*
+ * is quitting the game.                            *
  *                                                  *
- * EXIT_NOTIFICATION: used by the server to inform  *
- * all players that another one has left the game.  *
+ * (6)EXIT_NOTIFICATION: used by the server to      *
+ * inform all players that another one has left the *
+ * game.                                            *
  *                                                  *
- * CHANGE_WEAPON: sent by a client once he changes  *
- * weapon. It is sent as it is from the server to   *
- * all clients.                                     *
+ * (7)CHANGE_WEAPON: sent by a client once he       *
+ * changes weapon. It is sent as it is from the     *
+ * server to all clients.                           *
  *                                                  *
- * NEW_AMMO: a new life or ammonition box has       *
+ * (8)NEW_AMMO: a new life or ammonition box has    *
  * entered the arena!                               *
  *                                                  *
- * COLLECTED_AMMO: notifies all players that the    *
+ * (9)COLLECTED_AMMO: notifies all players that the *
  * ammonition box is no more available.             *
  *                                                  *
- * OLD_AMMO: passed to players when they enter the  *
- * arena. It is a vector containing all the         *
+ * (10)OLD_AMMO: passed to players when they enter  *
+ * the arena. It is a vector containing all the     *
  * currently spawned boxes on the map.              *
  *                                                  *
- * SHOT_PDU: notifies that a player shot a bullet.  *
+ * (11)SHOT_PDU: notifies that a player shot a      *
+ * bullet.                                          *
  *                                                  *
- * BULLET_ON_WALL: notifies all players that a      *
+ * (12)BULLET_ON_WALL: notifies all players that a  *
  * bullet has hit a wall, in order to delete it.    *
+ *                                                  *
+ * (13)DEAD_PLAYER: notifies all players that       *
+ * another one has died in order to take the proper *
+ * actions.                                         *
+ *                                                  *
+ * (14)BULLET_ON_PERSON: when a player is hit by a  *
+ * bullet, then this information must be given to   *
+ * all the other players in order to let them delete*
+ * the bullet.                                      *
+ *                                                  *
+ * (15)SERVER_BUSY: if the maximum number of players*
+ * has been reached, then the connection request is *
+ * discarded.                                       *
+ *                                                  *
+ * (16)NEW_SCORE: once a player connects to the game*
+ * a new message containing his id and his score (0)*
+ * is sent to everyone.                             *
+ *                                                  *
+ * (17)OLD_SCORES: sent by the server in order to   *
+ * let new players update their score of existing   *
+ * players once they connect.                       *
+ *                                                  *
+ * (18)KILL_SCORE: once a player dies, all the      *
+ * scores must be updated, therefore the server will*
+ * send the dead players id and the relative bullet *
+ * in order to update correctly.                    *
+ *                                                  *
+ * (19) CONNECTION_ACK: sent by a client when it    *
+ * successfully connects to the server. It is used  *
+ * for a correct synchronization.                   *
+ *                                                  *
+ * (20) EXIT_ACK: sent by the server to the client. *
+ * It is used to ensure a correct exit from the     *
+ * game.                                            *
  ****************************************************/
 #define CONNECTION_REQUEST		(0)
 #define CONNECTION_OK			(1)
@@ -78,10 +115,11 @@
 #define DEAD_PLAYER				(13)
 #define BULLET_ON_PERSON		(14)
 #define SERVER_BUSY				(15)
-#define CHANGED_SCORE			(16)
-#define NEW_SCORE				(17)
-#define OLD_SCORES				(18)
-#define KILL_SCORE				(19)
+#define NEW_SCORE				(16)
+#define OLD_SCORES				(17)
+#define KILL_SCORE				(18)
+#define CONNECTION_ACK			(19)
+#define EXIT_ACK				(20)
 
 var net_channel;
 // PLAYER_ARRAY = [NEW_PLAYER, player_id, position, angle, current_weapon]
@@ -101,6 +139,7 @@ var posE;
 var pos_arr;
 var start_time;
 var score_array;
+var conn_ack;
 
 function OnDownload()
 {
@@ -125,6 +164,8 @@ function OnInit()
 	players_ip = array(0);
 	score_array = array(0);
 	id = 0;
+	
+	conn_ack = false;
 	
 	start_time = GetTime();
 	
@@ -309,12 +350,16 @@ function OnTimer()
 	var ack;
 	var new_ip;
 	var exit_id;
+	var exit_pdu;
+	//var connection_time; //time at which the server received a connection request pdu
 	
 	if (received_data != null)
 	{
+		var connection_time;
 		switch (received_data[0])
 		{
 			case CONNECTION_REQUEST :
+				connection_time = getTime();
 				if (len(players) >= MAX_PLAYERS)
 				{
 					var refused_pdu = array(1);
@@ -323,67 +368,83 @@ function OnTimer()
 				}
 				else
 				{
+					connection_time = getTime();
 					ack = player_spawn();
 					mySend(address1, CLIENT_PORT, ack);
-					var msg = "SERVER: A new player entered the arena in position: ";
-					var msg2 = ", and with id ";
-					trace(msg);
-					var p_pos = ack[1];
-					var p_id = ack[2];
-					trace(msg, p_pos, msg2, p_id);
-
-					new_ip = array(2);
-					new_ip[0] = ack[2];
-					new_ip[1] = address1;
-					aadd(players_ip, new_ip);	
-
-					if (len(players) > 0)
+					
+					do
 					{
-						var old_players_arr = array(2);
-						old_players_arr[0] = OLD_PLAYERS;
-						old_players_arr[1] = players;
-						mySend(address1, CLIENT_PORT, old_players_arr);
-					}
+						received_data = NetVarReceiveFrom(net_channel, &address1);
+						if (received_data != null && received_data[0] == CONNECTION_ACK)
+							conn_ack = true;
+					} while (conn_ack == true || (getTime() - connection_time) > MAX_CONNECTION_TIMEOUT);
+					
+					if (conn_ack == true)
+					{
+						var msg = "SERVER: A new player entered the arena in position: ";
+						var msg2 = ", and with id ";
+						trace(msg);
+						var p_pos = ack[1];
+						var p_id = ack[2];
+						trace(msg, p_pos, msg2, p_id);
+	
+						new_ip = array(2);
+						new_ip[0] = ack[2];
+						new_ip[1] = address1;
+						aadd(players_ip, new_ip);	
+	
+						//sending to the new player the list of the exsisting players
+						if (len(players) > 0)
+						{
+							var old_players_arr = array(2);
+							old_players_arr[0] = OLD_PLAYERS;
+							old_players_arr[1] = players;
+							mySend(address1, CLIENT_PORT, old_players_arr);
+						}
+					
+						//sending to the new player the ammo boxes already deployed
+						if (len(arr_supplies) > 0)
+						{
+							var old_arr_supply = array(2);
+							old_arr_supply[0] = OLD_AMMO;
+							old_arr_supply[1] = arr_supplies;
+							mySend(address1, CLIENT_PORT, old_arr_supply);
+						}
+						
+						var nsc = array(2);
+						nsc[0] = id;
+						nsc[1] = 0;
+						aadd(score_array, nsc);
+						
+						var new_sc = array(2);
+						new_sc[0] = OLD_SCORES;
+						new_sc[1] = score_array;
+						mySend(address1, CLIENT_PORT, new_sc);
 				
-					if (len(arr_supplies) > 0)
-					{
-						var old_arr_supply = array(2);
-						old_arr_supply[0] = OLD_AMMO;
-						old_arr_supply[1] = arr_supplies;
-						mySend(address1, CLIENT_PORT, old_arr_supply);
+						player = array(5);
+						player[0] = NEW_PLAYER;
+						player[1] = ack[2];
+						player[2] = ack[1];
+						player[3] = 0; //angle
+						player[4] = 0; //starting weapon
+						aadd(players, player);
+				
+						foreach (var t in players_ip)
+							if (ack[2] != t[0])
+								mySend(t[1], CLIENT_PORT, player);
+								
+						var nsc2 = array(3);
+						nsc2[0] = NEW_SCORE;
+						nsc2[1] = id;
+						nsc2[2] = 0;	
+						
+						foreach (var t in players_ip)
+							if (ack[2] != t[0])
+								mySend(t[1], CLIENT_PORT, nsc2);
 					}
-					
-					var nsc = array(2);
-					nsc[0] = id;
-					nsc[1] = 0;
-					aadd(score_array, nsc);
-					
-					var new_sc = array(2);
-					new_sc[0] = OLD_SCORES;
-					new_sc[1] = score_array;
-					mySend(address1, CLIENT_PORT, new_sc);
-			
-					player = array(5);
-					player[0] = NEW_PLAYER;
-					player[1] = ack[2];
-					player[2] = ack[1];
-					player[3] = 0; //angle
-					player[4] = 0; //starting weapon
-					aadd(players, player);
-			
-					foreach (var t in players_ip)
-						if (ack[2] != t[0])
-							mySend(t[1], CLIENT_PORT, player);
-							
-					var nsc2 = array(3);
-					nsc2[0] = NEW_SCORE;
-					nsc2[1] = id;
-					nsc2[2] = 0;	
-					
-					foreach (var t in players_ip)
-						if (ack[2] != t[0])
-							mySend(t[1], CLIENT_PORT, nsc2);
-				}			
+					else
+						id--;			
+				}
 				break;
 				
 			case CHANGE_WEAPON :
@@ -402,6 +463,11 @@ function OnTimer()
 					if (players[t][1] == exit_id)
 					{
 						adel(players, t);
+						
+						exit_pdu = array(1);
+						exit_pdu[0] = EXIT_ACK;
+						mySend(players_ip[t][1], CLIENT_PORT, exit_pdu);
+						
 						adel(players_ip, t);
 						delete_player(exit_id);
 					}
@@ -447,6 +513,11 @@ function OnTimer()
 					if (players[t][1] == received_data[1])
 						{
 							adel(players, t);
+							
+							exit_pdu = array(1);
+							exit_pdu[0] = EXIT_ACK;
+							mySend(players_ip[t][1], CLIENT_PORT, exit_pdu);
+							
 							adel(players_ip, t);
 						}
 				for (var t = 0; t < len(score_array); t++)

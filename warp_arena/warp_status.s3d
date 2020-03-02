@@ -27,13 +27,13 @@
 //starting poing on y axis of the health bar
 #define healthY  	0.02
 //dimension on the x axis of the life bar - it takes all the screen
-#define healthDimX 1
+#define healthDimX 	1
 //dimension on the y axis of the life bar
-#define healthDimY 0.02
+#define healthDimY 	0.02
 //starting poing on x axis of the minimap
-#define mapX			0.7
+#define mapX		0.7
 //starting poing on y axis of the minimap
-#define mapY			1
+#define mapY		1
 //dimension on the x axis of the minimap
 #define maxXmap		0.3
 //dimension on the y axis of the minimap
@@ -42,6 +42,14 @@
 #define mapStepY	0.0046
 //dimension on the x axis of the map cell
 #define mapStepX	0.00148
+//starting poing on x axis of the score board
+#define scoreX		0
+//starting poing on y axis of the score board
+#define scoreY		1
+//dimension on the x axis of one element of the scores
+#define maxScoreX	0.2
+//dimension on the y axis of one element of the scores
+#define maxScoreY	0.05
 
 class status
 {	
@@ -65,8 +73,8 @@ class status
 	var bullets_fx;
 	
 	init();
-	update(position, view, w_type, n_bullets);
-	draw(position, view, w_type, n_bullets);
+	update(position, view, w_type, n_bullets, score_array);
+	draw(position, view, w_type, n_bullets, score_array);
 	recharge(type);
 	heal();
 	bullet_damage(type);
@@ -100,17 +108,17 @@ function status::init()
 }
 
 //hit = 0 if the player has not been shot, 0.1 if shot with gun, 0.5 if shot with railgun
-function status::update(position, view, w_type, n_bullets)
+function status::update(position, view, w_type, n_bullets, score_array)
 {
 	w_size = window.GetSize();
 	w_size.x /= 1723;
 	w_size.y /= 1043;
 	heal();
 	damage();
-	draw(position, view, w_type, n_bullets);
+	draw(position, view, w_type, n_bullets, score_array);
 }
 
-function status::draw(position, view, w_type, n_bullets)
+function status::draw(position, view, w_type, n_bullets, score_array)
 {
 	//status bar background
 	ConsoleColor(0.0, 0.0, 0.0, 0.6);
@@ -148,7 +156,7 @@ function status::draw(position, view, w_type, n_bullets)
 	{
 		ConsoleColor(1.0, 0.0, 0.0, 1.0);
 		ConsoleFont("Arial", 10);
-		ConsoleText(0.5, 0.8, "o");
+		ConsoleText(0.5, 0.78, "o");
 	}
 	else 
 	{
@@ -211,6 +219,26 @@ function status::draw(position, view, w_type, n_bullets)
 	p_map_y = mapY - mapStepY * int(position.z);
 	ConsoleColor(01.0, 0.8, 0.1, 1.0);
 	ConsoleFilledRect(p_map_x, p_map_y, mapStepX, mapStepY);
+	
+	//The following cose is realized in order to draw on the top left corner of the game the players score.
+	ConsoleColor(0.0, 0.0, 0.0, 0.6);
+	ConsoleFilledRect(scoreX, scoreY, maxScoreX, maxScoreY);
+	
+	ConsoleColor(0.6, 0, 0, 1.0);
+   	ConsoleFont("Calibri", sqrt(w_size.x^2 + w_size.y^2) * 30);
+	ConsoleText(scoreX + 0.063, scoreY - 0.036, "SCORE:");
+	
+	if (score_array != null)
+	{
+		for (var t = 0; t < len(score_array); t++)
+		{
+			ConsoleColor(0.0, 0.0, 0.0, 0.6);
+			ConsoleFilledRect(scoreX, scoreY - (maxScoreY * (t+1)), maxScoreX, maxScoreY);	
+			ConsoleColor(0.6, 0, 0, 1.0);
+   			ConsoleFont("Calibri", int(sqrt(w_size.x^2 * w_size.y^2) * 30));
+			ConsoleText(scoreX + 0.04, scoreY - (maxScoreY * (t+1)) - 0.03, "Player "+ str(score_array[t][0]) + " - Score: " + str(score_array[t][1]));
+		}
+	}
 }
 
 //heals a player for 50% of his total life when he gets a supply
