@@ -21,7 +21,7 @@
 #include "warp_enemy.s3d"
 #include "warp_supplies.s3d"
 //client/server defines
-#define SERVER_IP 		"192.168.1.31"
+#define SERVER_IP 		"192.168.1.184"
 #define SERVER_PORT		50023
 #define CLIENT_PORT		50025
 
@@ -128,6 +128,7 @@
 #define KILL_SCORE				(18)
 #define CONNECTION_ACK			(19)
 #define EXIT_ACK				(20)
+#define RIP_PDU					(21)
 
 #define connection_retry 		200
 
@@ -153,6 +154,11 @@ var mysupply;
 var mybox;
 var arr_supplies;
 var score_array;
+//Position counter. Every 10 frames we send the position, even if it didn't change.
+//var position_counter;
+//Flag in order to avoid doing dead reckoning if a position packet has arrived.
+//var new_position_fg;
+var enemy_direction;
 
 var net_channel;
 var players;
@@ -234,6 +240,8 @@ function OnInit(params)
 	address1 = "................";
 	var lastsend = GetTime();
 	var rcv_data;
+	//position_counter = 9; //once it reaches 0 we send the position
+	//new_position_fg = false;
 	
 	NetVarSendTo(SERVER_IP, SERVER_PORT, connection_pdu);
 	
@@ -343,7 +351,35 @@ function OnFrame()
 		bullet_pdu[2] = bullet_info;
 		mySend(SERVER_IP, SERVER_PORT, bullet_pdu);
 	}
-	
+	/*
+	position_counter -= 1;
+	if (position_counter == 0)
+	{
+		position_counter = 9;
+		var pos_pdu = array(5);
+		pos_pdu[0] = POSITION_PDU;
+		pos_pdu[1] = position;
+		pos_pdu[2] = angle;
+		pos_pdu[3] = myplayer.id;
+		pos_pdu[4] = myplayer.current_frame;
+		mySend(SERVER_IP, SERVER_PORT, pos_pdu);
+		
+		for (var t = 0; t < len(arr_supplies); t++)
+		{
+			if ( (int(position.x) == arr_supplies[t].obj.getPosition().x) &&
+				(int(position.z) == arr_supplies[t].obj.getPosition().z) )
+			{
+				var ammo_pdu = array(3);
+				ammo_pdu[0] = COLLECTED_AMMO;
+				ammo_pdu[1] = myplayer.id;
+				ammo_pdu[2] = t;
+				mySend(SERVER_IP, SERVER_PORT, ammo_pdu);
+				myplayer.mystatus.recharge(arr_supplies[t].type);
+				adel(arr_supplies, t);
+			}
+		}
+	}
+	*/
 	//I changed my position from the last one this function was called.
 	//I must notificate the server of this change.
 	if ( (old_pos != position) || (old_angle != angle) )
@@ -406,7 +442,17 @@ function OnFrame()
 	
 	myplayer.draw();
 	var f = len(players);
-	
+	/*
+	if (new_position_fg == false)
+		{
+			for (var k = 0; k < len(players); k++)
+				{
+					enemy_direction = [sin(players[k].angle), 0, cos(players[k].angle)];
+					players[k].position += (enemy_direction * players[k].step * players[k].run);
+				}
+		}
+	new_position_fg = false;
+	 */
 	foreach (var t in players)
 		t.draw_enemy();
 		
@@ -439,6 +485,24 @@ function OnFrame()
 				k_score[0] = KILL_SCORE;
 				k_score[1] = t[0];
 				mySend(SERVER_IP, SERVER_PORT, k_score);
+				var exit_lastsend = getTime();
+				var exit_max_time = exit_lastsend;
+				var exit_rcv = false;
+				var exit_rcv_data;
+				
+				while (exit_rcv == false || (getTime() - exit_max_time) > 2000)
+				{
+				if (GetTime() - exit_lastsend > connection_retry)
+					{
+						NetVarSendTo(SERVER_IP, SERVER_PORT, k_score);
+						exit_lastsend = GetTime();
+					}
+					exit_rcv_data = NetVarReceiveFrom(net_channel, &address1);
+			
+					exit_rcv = (exit_rcv_data != null && exit_rcv_data[0] == RIP_PDU) ?
+						true : exit_rcv;
+						
+				}
 				
 				OnExit();
 				window.Quit();
@@ -541,6 +605,7 @@ function OnTimer()
 				break;
 
 			case POSITION_PDU :
+				//new_position_fg = true;
 				for (var k = 0; k < len(players); k++)
 				{
 					if (received_data[3] == players[k].id)

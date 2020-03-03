@@ -120,6 +120,7 @@
 #define KILL_SCORE				(18)
 #define CONNECTION_ACK			(19)
 #define EXIT_ACK				(20)
+#define RIP_PDU					(21)
 
 var net_channel;
 // PLAYER_ARRAY = [NEW_PLAYER, player_id, position, angle, current_weapon]
@@ -351,7 +352,7 @@ function OnTimer()
 	var new_ip;
 	var exit_id;
 	var exit_pdu;
-	//var connection_time; //time at which the server received a connection request pdu
+	var rip;
 	
 	if (received_data != null)
 	{
@@ -368,7 +369,7 @@ function OnTimer()
 				}
 				else
 				{
-					connection_time = getTime();
+					connection_time = getTime(); //time at which the server received a connection request pdu
 					ack = player_spawn();
 					mySend(address1, CLIENT_PORT, ack);
 					
@@ -535,6 +536,12 @@ function OnTimer()
 			case KILL_SCORE :
 				foreach (var t in players_ip)
 						mySend(t[1], CLIENT_PORT, received_data);
+				for (var t = 0; t < len(score_array); t++)
+					if (received_data[1] == score_array[t][0])
+						score_array[t][1] += 1;
+				rip = array(1);
+				rip[0] = RIP_PDU;
+				mySend(address1, CLIENT_PORT, rip);
 				break;
 			
 			default :
