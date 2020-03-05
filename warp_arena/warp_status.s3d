@@ -68,21 +68,24 @@ class status
 	var num_columns;
 	var p_map_x; //temporary position counter on x axis for the drawing of the minimap
 	var p_map_y; //temporary position counter on y axis for the drawing of the minimap
+	var server_offline_fg;
 	
 	var life_fx;
 	var bullets_fx;
 	
 	init();
-	update(position, view, w_type, n_bullets, score_array);
-	draw(position, view, w_type, n_bullets, score_array);
+	update(position, view, w_type, n_bullets, score_array, id);
+	draw(position, view, w_type, n_bullets, score_array, id);
 	recharge(type);
 	heal();
 	bullet_damage(type);
 	damage();
+	server_offline_fun();
 };
 
 function status::init()
 {
+	server_offline_fg = false;
 	life = 0.4;
 	heal_fg = 0;
 	damage_fg = 0;
@@ -108,17 +111,17 @@ function status::init()
 }
 
 //hit = 0 if the player has not been shot, 0.1 if shot with gun, 0.5 if shot with railgun
-function status::update(position, view, w_type, n_bullets, score_array)
+function status::update(position, view, w_type, n_bullets, score_array, id)
 {
 	w_size = window.GetSize();
 	w_size.x /= 1723;
 	w_size.y /= 1043;
 	heal();
 	damage();
-	draw(position, view, w_type, n_bullets, score_array);
+	draw(position, view, w_type, n_bullets, score_array, id);
 }
 
-function status::draw(position, view, w_type, n_bullets, score_array)
+function status::draw(position, view, w_type, n_bullets, score_array, id)
 {
 	//status bar background
 	ConsoleColor(0.0, 0.0, 0.0, 0.6);
@@ -139,14 +142,6 @@ function status::draw(position, view, w_type, n_bullets, score_array)
 			ConsoleColor(1.0, 0.8, 0.1, 1.0);
    			ConsoleFont("Calibri", int(sqrt(w_size.x^2 * w_size.y^2) * 35));
 			ConsoleText(w_size.x * 0.02, w_size.y * 0.043, "RAILGUN: "+str(n_bullets));
-			break;
-			
-		case 2 :
-			ConsoleColor(0.2, 0.2, 1, 1.0);
-			ConsoleFilledRect(w_size.x * 0.005, w_size.y * 0.09, w_size.x * 0.188, w_size.y * 0.06);
-			ConsoleColor(1.0, 0.8, 0.1, 1.0);
-   			ConsoleFont("Calibri", int(sqrt(w_size.x^2 * w_size.y^2) * 35));
-			ConsoleText(w_size.x * 0.045, w_size.y * 0.043, "WARP-GUN: --");
 			break;
 			
 		default :
@@ -228,13 +223,27 @@ function status::draw(position, view, w_type, n_bullets, score_array)
    	ConsoleFont("Calibri", sqrt(w_size.x^2 + w_size.y^2) * 30);
 	ConsoleText(scoreX + 0.063, scoreY - 0.036, "SCORE:");
 	
+	if (server_offline_fg == true)
+	{
+		ConsoleColor(0.0, 0.0, 0.0, 0.6);
+		ConsoleFilledRect(0.3, 0.8, 0.42, 0.1);
+		ConsoleColor(0.6, 0, 0, 1.0);
+   		ConsoleFont("Calibri", 30);
+		ConsoleText(0.33, 0.72, "SERVER IS OFFLINE");
+	}
+	
 	if (score_array != null)
 	{
 		for (var t = 0; t < len(score_array); t++)
 		{
 			ConsoleColor(0.0, 0.0, 0.0, 0.6);
-			ConsoleFilledRect(scoreX, scoreY - (maxScoreY * (t+1)), maxScoreX, maxScoreY);	
-			ConsoleColor(0.6, 0, 0, 1.0);
+			ConsoleFilledRect(scoreX, scoreY - (maxScoreY * (t+1)), maxScoreX, maxScoreY);
+			
+			if (id == score_array[t][0])
+				ConsoleColor(0.6, 0.6, 0, 1.0);
+			else
+				ConsoleColor(0.6, 0, 0, 1.0);
+				
    			ConsoleFont("Calibri", int(sqrt(w_size.x^2 * w_size.y^2) * 30));
 			ConsoleText(scoreX + 0.04, scoreY - (maxScoreY * (t+1)) - 0.03, "Player "+ str(score_array[t][0]) + " - Score: " + str(score_array[t][1]));
 		}
@@ -297,4 +306,9 @@ function status::damage()
 		life -= 0.01;
 	else
 		damage_fg = 0;
+}
+
+function status::server_offline_fun()
+{
+	server_offline_fg = true;
 }

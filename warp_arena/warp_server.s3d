@@ -12,7 +12,7 @@
 #include "warp_player.s3d"
 
 #define SERVER_PORT				50023
-#define CLIENT_PORT				50025
+#define CLIENT_PORT				50024
 #define SPAWN_TIME				5000
 #define MAX_PLAYERS				4
 #define MAX_CONNECTION_TIMEOUT	1000
@@ -121,6 +121,7 @@
 #define CONNECTION_ACK			(19)
 #define EXIT_ACK				(20)
 #define RIP_PDU					(21)
+#define SERVER_OFFLINE			(22)
 
 var net_channel;
 // PLAYER_ARRAY = [NEW_PLAYER, player_id, position, angle, current_weapon]
@@ -140,7 +141,7 @@ var posE;
 var pos_arr;
 var start_time;
 var score_array;
-var conn_ack;
+var conn_ack = false;
 
 function OnDownload()
 {
@@ -360,6 +361,7 @@ function OnTimer()
 		switch (received_data[0])
 		{
 			case CONNECTION_REQUEST :
+				outputln("ciao");
 				connection_time = getTime();
 				if (len(players) >= MAX_PLAYERS)
 				{
@@ -373,15 +375,16 @@ function OnTimer()
 					ack = player_spawn();
 					mySend(address1, CLIENT_PORT, ack);
 					
-					do
+					while ( conn_ack == false && ((getTime() - connection_time) < MAX_CONNECTION_TIMEOUT) )
 					{
 						received_data = NetVarReceiveFrom(net_channel, &address1);
 						if (received_data != null && received_data[0] == CONNECTION_ACK)
 							conn_ack = true;
-					} while (conn_ack == true || (getTime() - connection_time) > MAX_CONNECTION_TIMEOUT);
+					}
 					
 					if (conn_ack == true)
 					{
+						conn_ack = false;
 						var msg = "SERVER: A new player entered the arena in position: ";
 						var msg2 = ", and with id ";
 						trace(msg);
@@ -562,12 +565,18 @@ function OnEvent()
 
 function OnError()
 {
-	
+	var server_exit_pdu = array(1);
+	server_exit_pdu = SERVER_OFFLINE;
+	foreach (var t in players_ip)
+		mySend(t[1], CLIENT_PORT, server_exit_pdu);
 }
 
 function OnExit()
 {
-	
+	var server_exit_pdu = array(1);
+	server_exit_pdu[0] = SERVER_OFFLINE;
+	foreach (var t in players_ip)
+		mySend(t[1], CLIENT_PORT, server_exit_pdu);
 }
 function DownloadReady()
 {

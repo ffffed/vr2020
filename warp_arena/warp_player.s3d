@@ -83,6 +83,8 @@ class player
 	var bullet_array;
 	var shot_cnt;
 	var has_shot;
+	var teleport_cnt;
+	var has_teleported;
 	var color;
 	var j_up;
 	var j_down;
@@ -112,7 +114,9 @@ function player::init(col, my_id)
 {
 	bullet_array = array(0);
 	shot_cnt = 0;
+	teleport_cnt = 0;
 	has_shot = false;
+	has_teleported = false;
 	angle = 0;
 	view = 1;
 	fp_cam = 1;
@@ -422,33 +426,30 @@ function player::update()
 		curr_weapon = 1;
 		mystatus.myWeapon.swap(curr_weapon);
 	}
-	/*
-	if (keypressed("L"))
-	{ 
-		obj.RemoveChild(weapon_obj);
-		weapon_obj = CVmObj(weapon_mesh2);
-		obj.addchild(weapon_obj);
-		curr_weapon = 2;
-		mystatus.myWeapon.swap(curr_weapon);
-	}
-	*/
 	
 	if (keypressed ("M"))
 	{
-			  	portal1_obj.setposition(oldposition);
-			  	portal1 = 1;
+			portal1_obj.setposition(oldposition);
+			portal1 = 1;
 	}
-	
 	
 	if (keypressed ("N"))
 	{
-		trace(portal1, portal2);
-			  	portal2_obj.setposition(oldposition);
-			  	portal2 = 1;
+			portal2_obj.setposition(oldposition);
+		  	portal2 = 1;
 	}
 	
 	
-	warp_check();
+	if (keypressed ("L"))
+	{
+		if(!has_teleported)
+		{
+			warp_check();	
+			has_teleported = true;
+		}
+		  	
+	}
+	
 	setrotation(angle);
 	setposition(position);
 	CameraGetCurrent().SetPosition(CamPos);
@@ -505,13 +506,13 @@ function player::setrotation(angle)
   
 	//questo è il calcolo normale, se non ho problemi di visuale in terza persona.
 	if (fp_cam == 1)
-		CamPos = [position.x+sin(-angle)*distance*view+(1-view)*sin(-angle)*0.5, 
-			position.y+altitude-(1-view)*0.5, position.z-distance*cos(angle)*view-(1-view)*cos(angle)*0.5];
+		CamPos = [position.x+sin(-angle)*distance*view+(1-view)*sin(-angle)*0.3, 
+			position.y+altitude-(1-view)*0.3, position.z-distance*cos(angle)*view-(1-view)*cos(angle)*0.3];
 	else
 	{
 		//This is the normal camera position calculator, based on the view
-		CamPos = [position.x+sin(-angle)*distance*view+(1-view)*sin(-angle)*0.5, 
-			position.y+altitude-(1-view)*0.5, position.z-distance*cos(angle)*view-(1-view)*cos(angle)*0.5];
+		CamPos = [position.x+sin(-angle)*distance*view+(1-view)*sin(-angle)*0.3, 
+			position.y+altitude-(1-view)*0.3, position.z-distance*cos(angle)*view-(1-view)*cos(angle)*0.3];
 		//We compute the third person camera position even if we are in first person.
 		//This because we want to check if we are not in a wall anymore.
 		CamPos1 = [position.x+sin(-angle)*distance*(1-view)+view*sin(-angle)*0.5, 
@@ -700,24 +701,15 @@ function player::warp_check()
 		var p1z = int(portal1_obj.getposition().z);
 		var p2x = int(portal2_obj.getposition().x);
 		var p2z = int(portal2_obj.getposition().z);
-		var teleport = 0;
-		trace(oldposition,position, p1x, p1z, p2x, p2z);
 		
-		if (int(oldposition.x) == p1x && int(oldposition.z) == p1z)
+		if (abs(int(oldposition.x)-p1x) <= 1 && abs(int(oldposition.z)-p1z) <= 1)
 		{
 			position = portal2_obj.getposition();
-			teleport = 1;
 		}	
-		else if (int(oldposition.x) == p2x && int(oldposition.z) == p2z)
+		else if (abs(int(oldposition.x)-p2x) <= 1 && abs(int(oldposition.z)-p2z) <= 1)
 		{
 			position = portal1_obj.getposition();
-			teleport = 1;
 		}
-		if (teleport == 1)
-		{
-			portal1 = 0;
-			portal2 = 0;
-		}
-		trace(position);
+		
 	}		
 }

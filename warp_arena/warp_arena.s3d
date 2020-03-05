@@ -21,9 +21,9 @@
 #include "warp_enemy.s3d"
 #include "warp_supplies.s3d"
 //client/server defines
-#define SERVER_IP 		"192.168.1.184"
+#define SERVER_IP 		"172.20.10.4"
 #define SERVER_PORT		50023
-#define CLIENT_PORT		50025
+#define CLIENT_PORT		50024
 
 /****************************************************
  *                     |PDUs|                       *
@@ -129,6 +129,7 @@
 #define CONNECTION_ACK			(19)
 #define EXIT_ACK				(20)
 #define RIP_PDU					(21)
+#define SERVER_OFFLINE			(22)
 
 #define connection_retry 		200
 
@@ -245,7 +246,7 @@ function OnInit(params)
 	
 	NetVarSendTo(SERVER_IP, SERVER_PORT, connection_pdu);
 	
-	do
+	while (rcv == false)
 	{
 		if (GetTime() - lastsend > connection_retry)
 		{
@@ -253,21 +254,24 @@ function OnInit(params)
 			lastsend = GetTime();
 		}
 		rcv_data = NetVarReceiveFrom(net_channel, &address1);
-		
+		trace(address1);
 		rcv = (rcv_data != null && rcv_data[0] == CONNECTION_OK) ?
 			true : rcv;
+
 		if (rcv_data != null && rcv_data[0] == SERVER_BUSY)
 		{
 			var y = "The game has started, retry later!";
 			trace(y);
 			window.Quit();
-		}	
-		
-	} while (rcv == true);
-	
-	var conn_ack = array(1);
-	conn_ack[0] = CONNECTION_ACK;
-	mySend(SERVER_IP, SERVER_PORT, conn_ack);
+		}
+	}
+	var time = getTime();
+	while ( (getTime() - time < 2000) )
+	{
+		var conn_ack = array(1);
+		conn_ack[0] = CONNECTION_ACK;
+		mySend(SERVER_IP, SERVER_PORT, conn_ack);
+	}
 	
 	old_pos = rcv_data[1];
 	position = rcv_data[1];
@@ -316,6 +320,10 @@ function OnFrame()
 	myplayer.shot_cnt = (myplayer.shot_cnt+1)%min_shot;
 	if (myplayer.has_shot && (myplayer.shot_cnt == 0))
 		myplayer.has_shot = false;
+		
+	myplayer.teleport_cnt = (myplayer.teleport_cnt+1)%20;
+	if (myplayer.has_teleported && (myplayer.teleport_cnt == 0))
+		myplayer.has_teleported = false;
 	/* manage camera */
 	CameraMoveMouse();
 
@@ -424,7 +432,7 @@ function OnFrame()
 	old_pos = position;
 	old_angle = angle;
 	
-	myplayer.mystatus.update(myplayer.position, myplayer.view, myplayer.curr_weapon, myplayer.mystatus.myWeapon.n_bullets_rg, score_array);	
+	myplayer.mystatus.update(myplayer.position, myplayer.view, myplayer.curr_weapon, myplayer.mystatus.myWeapon.n_bullets_rg, score_array, myplayer.id);	
 	mylevel.draw();
 	
 	//If I move my camera to first person, I'll hide the character and draw only the weapon.
@@ -708,6 +716,10 @@ function OnTimer()
 				for (var t = 0; t < len(score_array); t++)
 					if (score_array[t][0] == received_data[1])
 						score_array[t][1] += 1;
+				break;
+				
+			case SERVER_OFFLINE :
+				myplayer.mystatus.server_offline_fun();
 				break;
 				
 			default :
