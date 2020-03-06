@@ -1,3 +1,12 @@
+/******************************************************************************************************************
+ *                                           |WARP_BULLET.S3D|                                                    *
+ *----------------------------------------------------------------------------------------------------------------*
+ * This file contains the bullet class that is used in the game. It is used for both the player bullets as well as*
+ * the enemy ones. On init it creates a bullet depending on the type of weapon I have in hand. The update function*
+ * then updates the position and checks weather it has hit a wall. It positive case it sets an appropiate flag.   *
+ ******************************************************************************************************************/
+
+
 //minimum time to shoot between frames
 #define min_shot  50
 

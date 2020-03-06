@@ -228,7 +228,7 @@ function player::update()
 	for(var k = 0; k < len(bullet_array); k++)
 		bullet_array[k].update();
      
-	// Corsa
+	// Run
 	if (keypressed(VK_SHIFT))
 		run = 2;
 	else
@@ -313,7 +313,7 @@ function player::update()
 		}
 		
 		collision_check(1, angle);
- }
+	}
 
 	// Backwards Walk
 	else if (keypressed("S"))
@@ -363,23 +363,23 @@ function player::update()
 	// Backwards Walk
 	else if (keypressed("E"))
 	{  
-	i = int(position.z);
-	j = int(position.x);
-	position -= (direction_left*step*run);
-	i_new = int(position.z);
-	j_new = int(position.x);
-	// Se vado verso una zona più bassa, allora devo scendere
-	if (level_matrix[i_new][j_new] < level_matrix[i][j])
-		j_down = 1;
-	CamPos -= (direction_left*step*run);
-	current_frame += frame_step;
-	if (current_frame < SWAT_START_WALK)
-	{
-		step_fx.play();
-		current_frame = SWAT_END_WALK;
-	}
-
-	collision_check(0, leftang);
+		i = int(position.z);
+		j = int(position.x);
+		position -= (direction_left*step*run);
+		i_new = int(position.z);
+		j_new = int(position.x);
+		// Se vado verso una zona più bassa, allora devo scendere
+		if (level_matrix[i_new][j_new] < level_matrix[i][j])
+			j_down = 1;
+		CamPos -= (direction_left*step*run);
+		current_frame += frame_step;
+		if (current_frame < SWAT_START_WALK)
+		{
+			step_fx.play();
+			current_frame = SWAT_END_WALK;
+		}
+	
+		collision_check(0, leftang);
 	}
 	
 	// R for first person, F to go back to third person

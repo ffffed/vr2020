@@ -68,6 +68,7 @@ function enemy::init(init_pos, init_angle, init_id)
 	weapon_mesh0.scale(sf1);
 	weapon_mesh1 = CVMNewMesh("railgun.aam");
 	weapon_mesh1.scale(sf1);
+	//weapon mesh for portal gun! - NOT USED IN THIS GAME -
 	weapon_mesh2 = CVMNewMesh("rocketl.aam");
 	weapon_mesh2.scale(sf1);
 	weapon_mesh2.ModulateMaterials(0, 0, 1, 1);
@@ -92,7 +93,12 @@ function enemy::draw_enemy()
 {
 	obj.draw(VR_FRAME_NUMBER, current_frame);
 }
-
+/************************|SWITCH_WEAPON|********************************
+ *                                                                     *
+ * This function lets the enemies switch weapon. It is called once the *
+ * server tells me that a specified enemy changed his active weapon,   *
+ * and therefore I must change the relative mesh.                      *
+ ***********************************************************************/
 function enemy::switch_weapon(w)
 {
 	switch (w)
@@ -110,7 +116,7 @@ function enemy::switch_weapon(w)
 			obj.addchild(weapon_obj);
 			curr_weapon = 1;
 			break;
-			
+		//portal gun mesh - NOT USED IN THIS GAME -
 		case 2 :
 			obj.RemoveChild(weapon_obj);
 			weapon_obj = CVmObj(weapon_mesh2);

@@ -1,3 +1,11 @@
+/*****************************************************
+ *                 |WARP_BOX|                        *
+ *---------------------------------------------------*
+ * This class contains the class that is used to     *
+ * create life and bullet boxes on the map.          *
+ * It just needs the type of box in order to draw it.*
+ *****************************************************/
+
 class box 
 {
 	var type;

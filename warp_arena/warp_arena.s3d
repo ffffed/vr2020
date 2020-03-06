@@ -644,12 +644,15 @@ function OnTimer()
 		var p;
 		switch (received_data[0])
 		{
+			//a new player has entered the game.
+			//We must add him to the structure containing all the enemies.
 			case NEW_PLAYER :
 				myenemy = enemy();
 				myenemy.init(received_data[2], received_data[3], received_data[1]);
 				aadd(players, myenemy);
 				break;
-			
+			//a player has left the game. We must therefore delete his
+			//instance from the enemy and score structure.
 	 		case EXIT_NOTIFICATION :
 	 			for (var t = 0; t < len(players); t++)
 					if (players[t].id == received_data[1])
@@ -660,7 +663,8 @@ function OnTimer()
 						adel(score_array, t);
 				}
 				break;
-				
+			//sent by the server once I connect to the game. It lets me
+			//obtain information of players already in the game.	
 			case OLD_PLAYERS :
 				arr = received_data[1];
 				foreach (var t in received_data[1])
@@ -671,7 +675,8 @@ function OnTimer()
 					aadd(players, myenemy);				
 				}
 				break;
-
+			//a player has changed his position/angle. We must update the
+			//correct enemy in order to draw him coherently.
 			case POSITION_PDU :
 				//new_position_fg = true;
 				for (var k = 0; k < len(players); k++)
@@ -684,13 +689,15 @@ function OnTimer()
 					}
 				}
 				break;
-
+			//an opponent changed his weapon. We must modify the player structure
+			//in order to draw him coherently.
 			case CHANGE_WEAPON :
 				for (var k = 0; k < len(players); k++)
 					if (received_data[1] == players[k].id)
 						players[k].switch_weapon(received_data[2]);
 				break;
-				
+			//a new ammo box has spawned on the map. At first, if 3 were already on the map,
+			//we delete the first one (FIFO), and then add a box.
 			case NEW_AMMO :
 				if (len(arr_supplies) >= 3)
 					adel(arr_supplies, 0);
@@ -698,7 +705,8 @@ function OnTimer()
 				if (mybox != null)
 					aadd(arr_supplies, mybox);
 				break;
-				
+			//message sent by the server when I join a game. It lets me know about
+			//the boxes already on the map.
 			case OLD_AMMO :
 				for (var k = 0; k < len(received_data[1]); k++)
 				{
@@ -707,11 +715,12 @@ function OnTimer()
 						aadd(arr_supplies, mybox);
 				}
 				break;
-				
+			//a player has collected a box, therefore I delete it from the structure.
 			case COLLECTED_AMMO :
 				adel(arr_supplies, received_data[2]);
 				break;
-				
+			//a player has shot a bullet. We therefore create a bullet class instance and append it
+			//to the structure containing all the enemy player bullets. 
 			case SHOT_PDU :
 				placeholder = array(2);
 				placeholder[0] = received_data[1];
@@ -721,7 +730,8 @@ function OnTimer()
 				placeholder[1] = enemyBull;
 				aadd(enemy_bullets, placeholder);
 				break;
-				
+			//an enemy bullet found a wall on his trajectory, therefore we can delete it from 
+			//the structure containing all the enemy bullets.
 			case BULLET_ON_WALL :
 				for(var k = 0; k < len(enemy_bullets); k++)
 				{
@@ -730,7 +740,8 @@ function OnTimer()
 						adel(enemy_bullets, k);
 				}
 				break;
-				
+			//a player died! we must delete his instance from the 2 structures
+			//that contained him: players and score_array.
 			case DEAD_PLAYER :
 				for (var t = 0; t < len(players); t++)
 					if (players[t].id == received_data[1])
@@ -741,7 +752,8 @@ function OnTimer()
 						adel(score_array, t);
 				}
 				break;
-				
+			//a bullet that had been shot caught a player! We have to remove the bullet
+			//from the list of enemy bullets or ours if the bullet was shot by us.
 			case BULLET_ON_PERSON :
 				if (received_data[1] != myplayer.id)
 				{
@@ -757,24 +769,28 @@ function OnTimer()
 						if ( myplayer.bullet_array[k].bull_id == received_data[2] )
 							adel(myplayer.bullet_array, k);
 				break;
-			
+			//as soon as I connect to the server, he sends us the scores of the players
+			//that were already in the game.
 			case OLD_SCORES : 
 				score_array = received_data[1];
 				break;
-				
+			//when a new player enteres the arena, we have to add a score instance to 
+			//the appropriate structure.
 			case NEW_SCORE :
 				p = array(2);
 				p[0] = received_data[1];
 				p[1] = received_data[2];
 				aadd(score_array, p);
 				break;
-				
+			//when a player dies we must update the score of the player
+			//whos bullet was.
 			case KILL_SCORE :
 				for (var t = 0; t < len(score_array); t++)
 					if (score_array[t][0] == received_data[1])
 						score_array[t][1] += 1;
 				break;
-				
+			//if the server disconnects or crashes, an appropriate
+			//message will be shown to each client.
 			case SERVER_OFFLINE :
 				myplayer.mystatus.server_offline_fun();
 				break;

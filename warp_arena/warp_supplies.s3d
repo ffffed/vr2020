@@ -1,3 +1,11 @@
+/******************************************************************************************************************
+ *                                          |WARP_SUPPLIES.S3D|                                                   *
+ *----------------------------------------------------------------------------------------------------------------*
+ * This file containg the class on charge of creating the supplies that can be found on the map. For the actual   *
+ * box, it is created here by invoking the warp_box class. Here we just invoked the mesh files in order not to    *
+ * call them itatively each time a new box was created. We just assign the right mesh to ne newly created box.    *
+ ******************************************************************************************************************/
+
 #include "warp_box.s3d"
 
 #define sup_life 1
