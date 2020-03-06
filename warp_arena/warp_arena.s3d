@@ -21,7 +21,7 @@
 #include "warp_enemy.s3d"
 #include "warp_supplies.s3d"
 //client/server defines
-#define SERVER_IP 		"172.20.10.4"
+#define SERVER_IP 		"192.168.1.112"
 #define SERVER_PORT		50023
 #define CLIENT_PORT		50024
 
@@ -301,7 +301,7 @@ function OnInit(params)
 	score_array = array(0);
 	
 	myplayer = player();
-	myplayer.init([1, 1, 1], rcv_data[2]);
+	myplayer.init([1, 1, 1], rcv_data[2], mylevel.num_columns, mylevel.num_rows);
 	myplayer.setposition(rcv_data[1]);
 	welcome_fx.play();
 	

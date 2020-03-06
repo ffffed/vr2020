@@ -32,6 +32,9 @@ class level
 	var box_texture;
 	var floor_texture;
 	var sky_texture;
+	
+	var num_rows;
+	var num_columns;
 
 	init(level_textfile);
 	draw();		
@@ -70,8 +73,8 @@ function level::init(level_textfile)
 	box_mesh.SetMaterial(box_material);
 	box_mesh.Scale(1, 1, 1);
 	var f = LoadFile(level_textfile);
-	var num_rows = len(f);
-	var num_columns = len(f[0]);
+	num_rows = len(f); // z
+	num_columns = len(f[0]); // x
 	level_matrix = array(num_rows);
 	trace(num_rows,num_columns);
 	//map creation based on the characters found on the level.txt file.
