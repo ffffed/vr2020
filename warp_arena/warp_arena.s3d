@@ -106,6 +106,20 @@
  * (20) EXIT_ACK: sent by the server to the client. *
  * It is used to ensure a correct exit from the     *
  * game.                                            *
+ *                                                  *
+ * (21) RIP_PDU: Lets a player rest in peace once he*
+ * dies. It waits for an ack from the server to die.*
+ * This because we need to have coherent views of   *
+ * the players in the game, without bugs.           *
+ *                                                  *
+ * (22) SERVER_OFFLINE: If the server crashes or    *
+ * disconnects, all players are warned that the game*
+ * is over.                                         *
+ *                                                  *
+ * (23) ALIVE_ACK: Sent by the clients to the server*
+ * to let him know he hasn't crashed. The server has*
+ * an array of timeouts. Once a players doesn't     *
+ * signal his life a number of times, he is kicked. *
  ****************************************************/
 #define CONNECTION_REQUEST		(0)
 #define CONNECTION_OK			(1)
@@ -130,7 +144,9 @@
 #define EXIT_ACK				(20)
 #define RIP_PDU					(21)
 #define SERVER_OFFLINE			(22)
+#define ALIVE_ACK				(23)
 
+#define TIME_TO_ACK				500
 #define connection_retry 		200
 
 /* Set global scene parameters */
@@ -171,10 +187,11 @@ var old_weapon; //used to check weather the weapon has changed
 var enemy_bullets;
 var window;
 var welcome_fx;
+var last_ack_send;
 
 var address1;
 var arr;
-
+var start_ack = false;
 /* Function declarations */
 function CameraMoveMouse();
 
@@ -240,12 +257,16 @@ function OnInit(params)
 	
 	address1 = "................";
 	var lastsend = GetTime();
+	last_ack_send = GetTime();
+	start_ack = true;
 	var rcv_data;
 	//position_counter = 9; //once it reaches 0 we send the position
 	//new_position_fg = false;
 	
 	NetVarSendTo(SERVER_IP, SERVER_PORT, connection_pdu);
-	
+	//Active wait from the server. Once he asks a server to connect to the game,
+	//he waits for an answer. If positive he continues, else (if the game is full),
+	//he returns the message to retry later.
 	while (rcv == false)
 	{
 		if (GetTime() - lastsend > connection_retry)
@@ -254,10 +275,10 @@ function OnInit(params)
 			lastsend = GetTime();
 		}
 		rcv_data = NetVarReceiveFrom(net_channel, &address1);
-		trace(address1);
-		rcv = (rcv_data != null && rcv_data[0] == CONNECTION_OK) ?
-			true : rcv;
-
+		
+		if (rcv_data != null && rcv_data[0] == CONNECTION_OK)
+			rcv = true;
+			
 		if (rcv_data != null && rcv_data[0] == SERVER_BUSY)
 		{
 			var y = "The game has started, retry later!";
@@ -265,14 +286,12 @@ function OnInit(params)
 			window.Quit();
 		}
 	}
-	var time = getTime();
-	while ( (getTime() - time < 2000) )
-	{
-		var conn_ack = array(1);
-		conn_ack[0] = CONNECTION_ACK;
-		mySend(SERVER_IP, SERVER_PORT, conn_ack);
-	}
-	
+	//Now the server will wait for a confirmation message from the client.
+	//This part can be done with an active wait in case of HIGH packet loss rates.
+	var conn_ack = array(1);
+	conn_ack[0] = CONNECTION_ACK;
+	mySend(SERVER_IP, SERVER_PORT, conn_ack);
+	//here we set the freshly received position information, and a 0 angle.
 	old_pos = rcv_data[1];
 	position = rcv_data[1];
 	old_angle = 0;
@@ -288,7 +307,8 @@ function OnInit(params)
 	
 	SetTimeStep(1);
 }
-
+//Here we notify the server that we are going to leave the game,
+//in order to let every other player know.
 function OnExit()
 {
 	var exit_lastsend = getTime();
@@ -298,8 +318,9 @@ function OnExit()
 	exit_pdu[0] = PLAYER_EXIT;
 	exit_pdu[1] = myplayer.id;
 	mySend(SERVER_IP, SERVER_PORT, exit_pdu);
-	
-	do
+	//the client actively waits for the disconnection ack, to
+	//be extra sure everyone was noticed of this event.
+	while(exit_rcv == false)
 	{
 		if (GetTime() - exit_lastsend > connection_retry)
 		{
@@ -311,26 +332,27 @@ function OnExit()
 		exit_rcv = (exit_data != null && exit_data[0] == EXIT_ACK) ?
 			true : exit_rcv;
 		
-	} while (exit_rcv == true);
+	}
 }
 
 function OnFrame()
 { 
 	SceneBegin();
+	//Check to be done in order to let the player shoot only every TOT seconds.
 	myplayer.shot_cnt = (myplayer.shot_cnt+1)%min_shot;
 	if (myplayer.has_shot && (myplayer.shot_cnt == 0))
 		myplayer.has_shot = false;
-		
+	//Same check in order not to teleport continuously
 	myplayer.teleport_cnt = (myplayer.teleport_cnt+1)%20;
 	if (myplayer.has_teleported && (myplayer.teleport_cnt == 0))
 		myplayer.has_teleported = false;
 	/* manage camera */
 	CameraMoveMouse();
-
+	//update the position of the player
 	myplayer.update();
 	position = myplayer.position;
 	angle = myplayer.angle;
-	
+	//If one of my bullets hits a wall, we must notify everyone.
 	for (var k = 0; k < len(myplayer.bullet_array); k++)
 	{
 		if (myplayer.bullet_array[k].hit_fg == true)
@@ -343,7 +365,7 @@ function OnFrame()
 			adel(myplayer.bullet_array, k);
 		}
 	}
-	
+	//if I shot, I must tell everyone so they can instantiate a bullet
 	if (myplayer.shot_flag == 1)
 	{
 		myplayer.shot_flag = 0;
@@ -360,6 +382,7 @@ function OnFrame()
 		mySend(SERVER_IP, SERVER_PORT, bullet_pdu);
 	}
 	/*
+	//This part is dead reckoning, we won't use it.
 	position_counter -= 1;
 	if (position_counter == 0)
 	{
@@ -388,7 +411,8 @@ function OnFrame()
 		}
 	}
 	*/
-	//I changed my position from the last one this function was called.
+	
+	//I changed my position or angle from the last one this function was called.
 	//I must notificate the server of this change.
 	if ( (old_pos != position) || (old_angle != angle) )
 	{
@@ -399,7 +423,7 @@ function OnFrame()
 		pos_pdu[3] = myplayer.id;
 		pos_pdu[4] = myplayer.current_frame;
 		mySend(SERVER_IP, SERVER_PORT, pos_pdu);
-		
+		//here, once the position has changed, we'll check if we have collected a box.
 		for (var t = 0; t < len(arr_supplies); t++)
 		{
 			if ( (int(position.x) == arr_supplies[t].obj.getPosition().x) &&
@@ -431,7 +455,7 @@ function OnFrame()
 	
 	old_pos = position;
 	old_angle = angle;
-	
+	//here we update the user interface will all the new information.
 	myplayer.mystatus.update(myplayer.position, myplayer.view, myplayer.curr_weapon, myplayer.mystatus.myWeapon.n_bullets_rg, score_array, myplayer.id);	
 	mylevel.draw();
 	
@@ -441,7 +465,7 @@ function OnFrame()
 		myplayer.lower_obj.hide();
 		myplayer.upper_obj.hide();
 	}
-	//If I go bakc to third person I will draw by avatar again.
+	//If I go back to third person I will draw the avatar again.
 	else
 	{
 		myplayer.lower_obj.unhide();
@@ -461,18 +485,20 @@ function OnFrame()
 		}
 	new_position_fg = false;
 	 */
+	//draw all the enemies ...
 	foreach (var t in players)
 		t.draw_enemy();
-		
+	// ...and all the boxes on the ground ...
 	foreach (var t in arr_supplies)
 		t.draw_box();
-
+	// ... and all the flying bullets. Enemy_bullets contains only the enemy ones.
 	foreach (var t in enemy_bullets)
 	{
 		t[1].position += t[1].direction * t[1].speed;
 		t[1].obj.setPosition(t[1].position);
 		t[1].draw_bullet();
 		var p = myplayer.cylinder.iscollidingbbox(t[1].obj);
+		//If I'm hit ...
 		if (p == true)
 		{
 			var player_bullet = array(3);
@@ -481,14 +507,16 @@ function OnFrame()
 			player_bullet[2] = t[1].bull_id;
 			mySend(SERVER_IP, SERVER_PORT, player_bullet);	
 			var hit = myplayer.mystatus.bullet_damage(t[1].tipo);
+			// ... and if I die ...
 			if (hit == true)
 			{
+				// ... we notify of my death ...
 				var dead_pdu = array(3);
 				dead_pdu[0] = DEAD_PLAYER;
 				dead_pdu[1] = myplayer.id; //giocatore morto
 				dead_pdu[2] = t[0];
 				mySend(SERVER_IP, SERVER_PORT, dead_pdu);
-				
+				// ... and the killer updates his score.
 				var k_score = array(2);
 				k_score[0] = KILL_SCORE;
 				k_score[1] = t[0];
@@ -509,7 +537,7 @@ function OnFrame()
 			
 					exit_rcv = (exit_rcv_data != null && exit_rcv_data[0] == RIP_PDU) ?
 						true : exit_rcv;
-						
+					trace(exit_rcv);
 				}
 				
 				OnExit();
@@ -517,7 +545,6 @@ function OnFrame()
 			}
 		}
 	}
-		
 	SceneEnd();
 }
 
@@ -572,10 +599,43 @@ function DownloadReady(RequestID)
  * BULLET_ON_WALL: a bullet from another player has *
  * hit a wall. I must delete the corresponding      *
  * element from the enemy_bullets array structure.  *
+ *                                                  *
+ * DEAD_PLAYER: a player died. I must stop drawing  *
+ * him and delete him from the structures.          *
+ *                                                  *
+ * BULLET_ON_PERSON: When a player is hit from a    *
+ * bullet, I check weather it was present in the    *
+ * enemy bullets or was one of my bullets and delete*
+ * it.                                              *
+ *                                                  *
+ * OLD_SCORES: When I join the game, the structure  *
+ * in this message contains all the scores from the *
+ * players now present in the game.                 *
+ *                                                  *
+ * NEW_SCORE: When a player joins the game, we must *
+ * add his score to the right structure.            *
+ *                                                  *
+ * KILL_SCORE: A player has died. I must update the *
+ * scores structure in order to print it correctly. *
+ *                                                  *
+ * SERVER_OFFLINE: Once the server disconnects or   *
+ * crashes, the interface will notify it.           *
  ****************************************************/
 
 function OnTimer()
 {
+	if(start_ack)
+	{
+		if(GetTime() - last_ack_send >= TIME_TO_ACK)
+		{
+			last_ack_send = GetTime();
+			var ack_pdu = array(2);
+			ack_pdu[0] = ALIVE_ACK;
+			ack_pdu[1] = myplayer.id;
+			NetVarSendTo(SERVER_IP, SERVER_PORT, ack_pdu);
+		}
+	}
+	
 	var received_data = NetVarReceiveFrom(net_channel, &address1);
 	if (received_data != null)
 	{
@@ -694,11 +754,8 @@ function OnTimer()
 				}
 				else
 					for(var k = 0; k < len(myplayer.bullet_array); k++)
-					{
-						if ( myplayer.bullet_array[k].bull_id == received_data[2] ) 
-							
+						if ( myplayer.bullet_array[k].bull_id == received_data[2] )
 							adel(myplayer.bullet_array, k);
-					}
 				break;
 			
 			case OLD_SCORES : 

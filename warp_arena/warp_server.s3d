@@ -16,6 +16,7 @@
 #define SPAWN_TIME				5000
 #define MAX_PLAYERS				4
 #define MAX_CONNECTION_TIMEOUT	1000
+#define MAX_TIMEOUT				3000
 
 /****************************************************
  *                     |PDUs|                       *
@@ -98,6 +99,20 @@
  * (20) EXIT_ACK: sent by the server to the client. *
  * It is used to ensure a correct exit from the     *
  * game.                                            *
+ *                                                  *
+ * (21) RIP_PDU: Lets a player rest in peace once he*
+ * dies. It waits for an ack from the server to die.*
+ * This because we need to have coherent views of   *
+ * the players in the game, without bugs.           *
+ *                                                  *
+ * (22) SERVER_OFFLINE: If the server crashes or    *
+ * disconnects, all players are warned that the game*
+ * is over.                                         *
+ *                                                  *
+ * (23) ALIVE_ACK: Sent by the clients to the server*
+ * to let him know he hasn't crashed. The server has*
+ * an array of timeouts. Once a players doesn't     *
+ * signal his life a number of times, he is kicked. *
  ****************************************************/
 #define CONNECTION_REQUEST		(0)
 #define CONNECTION_OK			(1)
@@ -122,13 +137,15 @@
 #define EXIT_ACK				(20)
 #define RIP_PDU					(21)
 #define SERVER_OFFLINE			(22)
+#define ALIVE_ACK				(23)
 
 var net_channel;
 // PLAYER_ARRAY = [NEW_PLAYER, player_id, position, angle, current_weapon]
 var players;
 // PLAYER_IP = [player_id, player_ip_addr]
 var players_ip;
-
+// PLAYER ACK  = [player_id, timer]
+var player_ack;
 // incremental ID to assign to a player once he requests a connection.
 var id;
 var address1;
@@ -164,9 +181,9 @@ function OnInit()
 
 	players = array(0);
 	players_ip = array(0);
+	player_ack = array(0);
 	score_array = array(0);
 	id = 0;
-	
 	conn_ack = false;
 	
 	start_time = GetTime();
@@ -346,23 +363,29 @@ function adding_supply()
 
 function OnTimer()
 {
-	var curr_time = GetTime();
-	var received_data = NetVarReceiveFrom(net_channel, &address1);
-	var player;
-	var ack;
-	var new_ip;
+	var player; //placeholder for new player info
+	var ack; //placeholder for newly generated parameters for new players
+	var new_ip; //placeholder for a new element in the players_ip array
+	var new_player_ack;
 	var exit_id;
 	var exit_pdu;
 	var rip;
+	
+	var curr_time = GetTime();
+	var received_data = NetVarReceiveFrom(net_channel, &address1);
+	
+	for(var i = 0; i < len(player_ack); i++)
+		player_ack[i][1] -= 1;
 	
 	if (received_data != null)
 	{
 		var connection_time;
 		switch (received_data[0])
 		{
+			//a player want to connect to the game.
 			case CONNECTION_REQUEST :
-				outputln("ciao");
 				connection_time = getTime();
+				//if the game has already MAX_PLAYERS playing, he rejects the connection.
 				if (len(players) >= MAX_PLAYERS)
 				{
 					var refused_pdu = array(1);
@@ -374,14 +397,20 @@ function OnTimer()
 					connection_time = getTime(); //time at which the server received a connection request pdu
 					ack = player_spawn();
 					mySend(address1, CLIENT_PORT, ack);
+					trace(ack, address1);
 					
-					while ( conn_ack == false && ((getTime() - connection_time) < MAX_CONNECTION_TIMEOUT) )
+					//once we send the information, we wait for 1 second for the client to confirm us the connection.
+					//if the time passes and he didn't confirm, we start listening again, assigning the id to
+					//someone else.
+					while (conn_ack == false && ((getTime() - connection_time) < MAX_CONNECTION_TIMEOUT) )
 					{
+						mySend(address1, CLIENT_PORT, ack);
 						received_data = NetVarReceiveFrom(net_channel, &address1);
 						if (received_data != null && received_data[0] == CONNECTION_ACK)
 							conn_ack = true;
 					}
-					
+					//once a player accepts the connection, we prepare every data structure and tell
+					//all other players already in the game.
 					if (conn_ack == true)
 					{
 						conn_ack = false;
@@ -391,11 +420,16 @@ function OnTimer()
 						var p_pos = ack[1];
 						var p_id = ack[2];
 						trace(msg, p_pos, msg2, p_id);
-	
+						//here we add a new instance to the array of IPs
 						new_ip = array(2);
 						new_ip[0] = ack[2];
 						new_ip[1] = address1;
-						aadd(players_ip, new_ip);	
+						aadd(players_ip, new_ip);
+						//here we add a new instance to the array of timeouts
+						new_player_ack = array(2);
+						new_player_ack[0] = ack[2];
+						new_player_ack[1] = MAX_TIMEOUT;
+						aadd(player_ack, new_player_ack);	
 	
 						//sending to the new player the list of the exsisting players
 						if (len(players) > 0)
@@ -415,16 +449,18 @@ function OnTimer()
 							mySend(address1, CLIENT_PORT, old_arr_supply);
 						}
 						
+						//here we add a new instance to the score array structure ...
 						var nsc = array(2);
 						nsc[0] = id;
 						nsc[1] = 0;
 						aadd(score_array, nsc);
-						
+						// ... and send him the new structure, with also the old players.
 						var new_sc = array(2);
 						new_sc[0] = OLD_SCORES;
 						new_sc[1] = score_array;
 						mySend(address1, CLIENT_PORT, new_sc);
-				
+						//the player variable contains all the initial information of the
+						//player. We add it to the structure containing all of them ...
 						player = array(5);
 						player[0] = NEW_PLAYER;
 						player[1] = ack[2];
@@ -432,25 +468,27 @@ function OnTimer()
 						player[3] = 0; //angle
 						player[4] = 0; //starting weapon
 						aadd(players, player);
-				
+						// ... and send it to everyone, so they can add it to the structure and draw him.
 						foreach (var t in players_ip)
 							if (ack[2] != t[0])
 								mySend(t[1], CLIENT_PORT, player);
-								
+						//new score (initialized to 0) stored ...
 						var nsc2 = array(3);
 						nsc2[0] = NEW_SCORE;
 						nsc2[1] = id;
 						nsc2[2] = 0;	
-						
+						// ... and sent to every other player.
 						foreach (var t in players_ip)
 							if (ack[2] != t[0])
 								mySend(t[1], CLIENT_PORT, nsc2);
 					}
+					//if the player doesn't accept the connection, we reuse the ID we gave him.
 					else
 						id--;			
 				}
 				break;
-				
+			//Once a player changes weapon, we save the information for future players and
+			//tell every player of this change.
 			case CHANGE_WEAPON :
 				for (var t = 0; t < len(players); t++)
 					if (received_data[1] == players[t][1])
@@ -459,7 +497,8 @@ function OnTimer()
 					if (received_data[1] != t[0])
 						mySend(t[1], CLIENT_PORT, received_data);
 				break;
-
+			//once a player exits the game (not from dying), we delete him from every structure
+			//and tell everyone of this event by invoking the delete_player() function.
 			case PLAYER_EXIT :
 				exit_id = received_data[1];
 				for (var t = 0; t < len(players); t++)
@@ -477,37 +516,40 @@ function OnTimer()
 					}
 				}
 				for (var t = 0; t < len(score_array); t++)
-				{
 					if (score_array[t][0] == exit_id)
 						adel(score_array, t);
-				}
 				break;
-			
+			//Once a player changes his position, he sends the new information to the server ...
+			// ... so he can tell every other player of this change.
 			case POSITION_PDU :
 				foreach (var t in players_ip)
 					if (received_data[3] != t[0])
 						mySend(t[1], CLIENT_PORT, received_data);
 				break;
-			
+			//Once a player collects a box, he sends the information to the server ...
+			// ... so he can tell every other player of this change.
 			case COLLECTED_AMMO :
 				adel(arr_supplies, received_data[2]);
 				foreach (var t in players_ip)
 					if (received_data[1] != t[0])
 						mySend(t[1], CLIENT_PORT, received_data);
 				break;
-						
+			//Once a player shoots a bullet, he sends the information to the server ...
+			// ... so he can tell every other player of this bullet.	
 			case SHOT_PDU :
 				foreach (var t in players_ip)
 					if (received_data[1] != t[0])
 						mySend(t[1], CLIENT_PORT, received_data);
 				break;
-			
+			//Once a bullet of a player hits a wall, he sends the information to the server ...
+			// ... so he can tell every other player of this event.
 			case BULLET_ON_WALL :
 				foreach (var t in players_ip)
 					if (received_data[1] != t[0])
 						mySend(t[1], CLIENT_PORT, received_data);
 				break;	
-				
+			//If a player dies from hand of a bullet of a player, we must notify every player of the death,
+			//so they can stop drawing him.
 			case DEAD_PLAYER :
 				foreach (var t in players_ip)
 					if (received_data[1] != t[0])
@@ -515,27 +557,27 @@ function OnTimer()
 				
 				for (var t = 0; t < len(players); t++)
 					if (players[t][1] == received_data[1])
-						{
-							adel(players, t);
+					{
+						adel(players, t);
 							
-							exit_pdu = array(1);
-							exit_pdu[0] = EXIT_ACK;
-							mySend(players_ip[t][1], CLIENT_PORT, exit_pdu);
+						exit_pdu = array(1);
+						exit_pdu[0] = EXIT_ACK;
+						mySend(players_ip[t][1], CLIENT_PORT, exit_pdu);
 							
-							adel(players_ip, t);
-						}
+						adel(players_ip, t);
+					}
+					
 				for (var t = 0; t < len(score_array); t++)
-				{
 					if (score_array[t][0] == received_data[1])
 						adel(score_array, t);
-				}
+						
 				break;	
-				
+			//If a bullet has hit a client, he notifies everyone so they delete the bullet.
 			case BULLET_ON_PERSON :
 				foreach (var t in players_ip)
 						mySend(t[1], CLIENT_PORT, received_data);
 				break;
-				
+			//When a player dies, his ID must be sent to everyone so they can update their score.
 			case KILL_SCORE :
 				foreach (var t in players_ip)
 						mySend(t[1], CLIENT_PORT, received_data);
@@ -546,11 +588,39 @@ function OnTimer()
 				rip[0] = RIP_PDU;
 				mySend(address1, CLIENT_PORT, rip);
 				break;
+			//Collected by the server to keep track of active clients. If they crash
+			//they will stop sending this message.
+			case ALIVE_ACK : 
+			 for(var i = 0; i<len(player_ack); i++)
+			 	if (player_ack[i][0] == received_data[1])
+			 		player_ack[i][1] = MAX_TIMEOUT;
+			 break;		 
 			
 			default :
 		}
 	}
 	adding_supply();
+	//This part takes care of checking weather a player is still active in the game.
+	//If the check fails, he is removed from the game.
+	for(var i = 0; i<len(player_ack); i++)
+		if (player_ack[i][1] <= 0)
+		{
+			for (var t = 0; t < len(players); t++)
+			{
+				if (players[t][1] == player_ack[i][0])
+				{
+					adel(players, t);
+					exit_pdu = array(1);
+					exit_pdu[0] = EXIT_ACK;
+					mySend(players_ip[t][1], CLIENT_PORT, exit_pdu);
+					
+					adel(players_ip, t);
+					adel(score_array, t);
+					delete_player(player_ack[i][0]);
+					adel(player_ack, i);
+				}
+			}
+		}	
 }
 
 function OnFrame()
@@ -562,21 +632,21 @@ function OnEvent()
 {
 	
 }
-
-function OnError()
-{
-	var server_exit_pdu = array(1);
-	server_exit_pdu = SERVER_OFFLINE;
-	foreach (var t in players_ip)
-		mySend(t[1], CLIENT_PORT, server_exit_pdu);
-}
-
-function OnExit()
-{
-	var server_exit_pdu = array(1);
-	server_exit_pdu[0] = SERVER_OFFLINE;
-	foreach (var t in players_ip)
-		mySend(t[1], CLIENT_PORT, server_exit_pdu);
+//In case of error, we must notify all players that the game has ended.
+function OnError() 
+{ 
+	var server_exit_pdu = array(1); 
+	server_exit_pdu = SERVER_OFFLINE; 
+	foreach (var t in players_ip) 
+		mySend(t[1], CLIENT_PORT, server_exit_pdu); 
+} 
+//In case of closed server, we must notify all players that the game has ended.
+function OnExit() 
+{ 
+	var server_exit_pdu = array(1); 
+	server_exit_pdu[0] = SERVER_OFFLINE; 
+	foreach (var t in players_ip) 
+		mySend(t[1], CLIENT_PORT, server_exit_pdu); 
 }
 function DownloadReady()
 {

@@ -212,7 +212,9 @@ function player::init(col, my_id)
  *     -> I: shoots with the currently equipped weapon;                                                           *	
  *     -> J: toggles the normal gun as active weapon;                                                             *
  *     -> K: toggles the rocket laucher as active weapon;                                                         *
- *     -> L: toggles the PORTAL_GUN as equipped weapon. The fun start here ;)                                     *
+ *     -> N/M: Lets a player create a portal on the position he is standing on!                                   *
+ *     -> L: Once a player finds himself to be on a portal, by using this command he will be TELEPORTED to the    *
+ *               other one!                                                                                       *
  *     -> Q: lets the player move laterally to his left, without changing his vieweing angle. It can be combined  *
  *               with the W key to move both forward and left;                                                    *
  *     -> E: lets the player move laterally to his right, without changing his vieweing angle. It can be combined *
@@ -408,7 +410,7 @@ function player::update()
 			}
 		}
 	} 
-  
+	//toggles the normal pistol.
 	if (keypressed("J"))
 	{ 
 		obj.RemoveChild(weapon_obj);
@@ -417,7 +419,7 @@ function player::update()
 		curr_weapon = 0;
 		mystatus.myWeapon.swap(curr_weapon);
 	}
-		
+	//toggles the railgun
 	if (keypressed("K"))
 	{ 
 		obj.RemoveChild(weapon_obj);
@@ -426,20 +428,21 @@ function player::update()
 		curr_weapon = 1;
 		mystatus.myWeapon.swap(curr_weapon);
 	}
-	
+	//creates one of the two possible portals, if one already exists, it replaces it.
 	if (keypressed ("M"))
 	{
-			portal1_obj.setposition(oldposition);
-			portal1 = 1;
+		portal1_obj.setposition(oldposition);
+		portal1 = 1;
 	}
-	
+	//creates the other one of the two possible portals, if one already exists, it replaces it.
 	if (keypressed ("N"))
 	{
-			portal2_obj.setposition(oldposition);
-		  	portal2 = 1;
+		portal2_obj.setposition(oldposition);
+	  	portal2 = 1;
 	}
 	
-	
+	//if 2 portals are on the map, and the player is standing on one of them,
+	//it teleports him to the other one.
 	if (keypressed ("L"))
 	{
 		if(!has_teleported)
@@ -447,7 +450,6 @@ function player::update()
 			warp_check();	
 			has_teleported = true;
 		}
-		  	
 	}
 	
 	setrotation(angle);
@@ -456,8 +458,7 @@ function player::update()
 
 	//updates camera focal point
 	CameraGetCurrent().SetTarget(position.x+sin(angle)*(distance+3), 
-		position.y+(1-view)*0.9, position.z+cos(angle)*(distance+3)
-	);
+		position.y+(1-view)*0.9, position.z+cos(angle)*(distance+3));
 }
 
 /******************************************************************************************************************

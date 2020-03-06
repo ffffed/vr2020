@@ -1,314 +1,323 @@
-/******************************************************************************************************************
- *                                          |WARP_STATUS.S3D|                                                     *
- *----------------------------------------------------------------------------------------------------------------*
- * This file represents the class that is in charge of dynamically handling the graphical interface of players    *
- * while they play the game. The main feature are:                                                                *
- *                                                                                                                *
- *      -> LIFE BAR: on the bottom part of the screen, there is a life bar that represents a full life. Once a    *
- *                   player is shot it goes down, and then recharger if a supply is collected from the ground.    *
- *                                                                                                                *
- *      -> GUN HANDLER: on the bottom left of the screen, an indicator with the current type of weapon can be     *
- *                      found, with the relative number of bullets. The normal pistol has 99, and never go down,  *
- *                      while the railgun has 10, that can be recharged from collecting a supply. The last weapon *
- *                      has "--", since only 2 can be shot, with the third replacing the first and so on.         *
- *                                                                                                                *
- *      -> TARGET: to help players during combat, a target can be found on the screen. It changes position if the *
- *                 player switches view.                                                                          *
- *                                                                                                                *
- *      -> MINI MAP: a minimap can be found on the top right corner of the UI, and it also highlightes the        *
- *                   current position of the player - enemies are not shown.                                      *
- *                                                                                                                *
- ******************************************************************************************************************/
-
-#include "warp_weapons.s3d"
-
-//starting poing on x axis of the health bar
-#define healthX 	0.0
-//starting poing on y axis of the health bar
-#define healthY  	0.02
-//dimension on the x axis of the life bar - it takes all the screen
-#define healthDimX 	1
-//dimension on the y axis of the life bar
-#define healthDimY 	0.02
-//starting poing on x axis of the minimap
-#define mapX		0.7
-//starting poing on y axis of the minimap
-#define mapY		1
-//dimension on the x axis of the minimap
-#define maxXmap		0.3
-//dimension on the y axis of the minimap
-#define maxYmap		0.1954
-//dimension on the y axis of the map cell
-#define mapStepY	0.0046
-//dimension on the x axis of the map cell
-#define mapStepX	0.00148
-//starting poing on x axis of the score board
-#define scoreX		0
-//starting poing on y axis of the score board
-#define scoreY		1
-//dimension on the x axis of one element of the scores
-#define maxScoreX	0.2
-//dimension on the y axis of one element of the scores
-#define maxScoreY	0.05
-
-class status
-{	
-	var window;
-	var w_size;
-	var life;
-	var myWeapon;
-	var heal_fg;
-	var damage_fg;
-	var curr_life;
-	var map_matrix;
-	var counter_x;
-	var counter_y;
-	var f;
-	var num_rows;
-	var num_columns;
-	var p_map_x; //temporary position counter on x axis for the drawing of the minimap
-	var p_map_y; //temporary position counter on y axis for the drawing of the minimap
-	var server_offline_fg;
-	
-	var life_fx;
-	var bullets_fx;
-	
-	init();
-	update(position, view, w_type, n_bullets, score_array, id);
-	draw(position, view, w_type, n_bullets, score_array, id);
-	recharge(type);
-	heal();
-	bullet_damage(type);
-	damage();
-	server_offline_fun();
-};
-
-function status::init()
-{
-	server_offline_fg = false;
-	life = 0.4;
-	heal_fg = 0;
-	damage_fg = 0;
-	curr_life = life;
-	map_matrix = array(0);
-	counter_x = -mapStepX;
-	counter_y = -mapStepy;
-	p_map_x = -mapStepX;
-	p_map_y = -mapStepy;
-	
-	f = LoadFile("level.txt");
-	num_rows = len(f);
-	num_columns = len(f[0]);
-	
-	window = CVmWebBrowser();
-	w_size = window.GetSize();
-	w_size.x /= 1723;
-	w_size.y /= 1043;
-	draw([19, 0, 4], 1, 0, 10);
-	
-	life_fx  = CVmVRAWAV("life.wav");
-	bullets_fx  = CVmVRAWAV("bullets.wav");
-}
-
-//hit = 0 if the player has not been shot, 0.1 if shot with gun, 0.5 if shot with railgun
-function status::update(position, view, w_type, n_bullets, score_array, id)
-{
-	w_size = window.GetSize();
-	w_size.x /= 1723;
-	w_size.y /= 1043;
-	heal();
-	damage();
-	draw(position, view, w_type, n_bullets, score_array, id);
-}
-
-function status::draw(position, view, w_type, n_bullets, score_array, id)
-{
-	//status bar background
-	ConsoleColor(0.0, 0.0, 0.0, 0.6);
-	ConsoleFilledRect(w_size.x * 0.0, w_size.y * 0.1, w_size.x * 0.2, w_size.y * 0.1);
-	switch (w_type)
-	{
-		case 0:
-			ConsoleColor(0.6, 0.0, 0.0, 1.0);
-			ConsoleFilledRect(w_size.x * 0.005, w_size.y * 0.09, w_size.x * 0.188, w_size.y * 0.06);
-			ConsoleColor(1.0, 0.8, 0.1, 1.0);
-   			ConsoleFont("Calibri", int(sqrt(w_size.x^2 * w_size.y^2) * 35));
-			ConsoleText(w_size.x * 0.045, w_size.y * 0.043, "GUN: 99");
-			break;
-			
-		case 1:
-			ConsoleColor(0.5, 0.55, 0.4, 1.0);
-			ConsoleFilledRect(w_size.x * 0.005, w_size.y * 0.09, w_size.x * 0.188, w_size.y * 0.06);
-			ConsoleColor(1.0, 0.8, 0.1, 1.0);
-   			ConsoleFont("Calibri", int(sqrt(w_size.x^2 * w_size.y^2) * 35));
-			ConsoleText(w_size.x * 0.02, w_size.y * 0.043, "RAILGUN: "+str(n_bullets));
-			break;
-			
-		default :
-	}
-	//target: 0 for first person, the other for third
-	if (view == 1)
-	{
-		ConsoleColor(1.0, 0.0, 0.0, 1.0);
-		ConsoleFont("Arial", 10);
-		ConsoleText(0.5, 0.78, "o");
-	}
-	else 
-	{
-		ConsoleColor(1.0, 0.0, 0.0, 1.0);
-		ConsoleFont("Arial", 10);
-		ConsoleText(0.5, 0.55, "o");
-	}
-	//Status regarding players life
-	ConsoleColor(0.0, 0.0, 0.0, 0.6);
-	ConsoleFilledRect(healthX, healthY, healthDimX, healthDimY);
-	ConsoleColor(0.6, 0.0, 0.0, 1.0);
-	ConsoleFilledRect(healthX, healthY, life, healthDimY);
-	ConsoleColor(1.0, 1.0, 1.0, 1.0);
-   	ConsoleFont("Calibri", sqrt(w_size.x^2+w_size.y^2) * 10);
-	ConsoleText(0.5, 0.005, "L  I  F  E");
-	
-	//The following code is related to the creation of the mini-map that can be found on the
-	//top right corner of the player UI.
-	counter_x = -mapStepX;
-	counter_y = -mapStepy;
-	//map creation based on the characters found on the level.txt file.
-	ConsoleColor(0.0, 0.0, 0.0, 0.6);
-	ConsoleFilledRect(mapX, mapY, maxXmap, maxYmap);
-	for(var i = 0; i < num_rows; i++)
-	{
-		counter_y += mapStepY;
-		counter_x = -mapStepX;
-		for(var j = 0; j < num_columns; j++)
-		{
-			counter_x += mapStepX;
-			//inner walls
-			switch (f[i][j])
-			{
-			case "*" :
-				ConsoleColor(0.6, 0.0, 0.0, 1.0);
-				ConsoleFilledRect(mapX + counter_x, mapY - counter_y, mapStepX, mapStepY);
-				break;
-
-			//outer walls
-			case "#" :
-				ConsoleColor(0.6, 0.0, 0.0, 1.0);
-				ConsoleFilledRect(mapX + counter_x, mapY - counter_y, mapStepX, mapStepY);
-				break;
-			//heart box
-			case "@" :
-				ConsoleColor(0.5, 0.55, 0.4, 1.0);
-				ConsoleFilledRect(mapX + counter_x, mapY - counter_y, mapStepX, mapStepY);
-				break;
-			//two cases one on top the other
-			case "+" :
-				ConsoleColor(0.5, 0.55, 0.4, 1.0);
-				ConsoleFilledRect(mapX + counter_x, mapY - counter_y, mapStepX, mapStepY);
-				break;
-			
-			default :
-			}
-		}
-	}
-	p_map_x = mapX + mapStepX * int(position.x);
-	p_map_y = mapY - mapStepY * int(position.z);
-	ConsoleColor(01.0, 0.8, 0.1, 1.0);
-	ConsoleFilledRect(p_map_x, p_map_y, mapStepX, mapStepY);
-	
-	//The following cose is realized in order to draw on the top left corner of the game the players score.
-	ConsoleColor(0.0, 0.0, 0.0, 0.6);
-	ConsoleFilledRect(scoreX, scoreY, maxScoreX, maxScoreY);
-	
-	ConsoleColor(0.6, 0, 0, 1.0);
-   	ConsoleFont("Calibri", sqrt(w_size.x^2 + w_size.y^2) * 30);
-	ConsoleText(scoreX + 0.063, scoreY - 0.036, "SCORE:");
-	
-	if (server_offline_fg == true)
-	{
-		ConsoleColor(0.0, 0.0, 0.0, 0.6);
-		ConsoleFilledRect(0.3, 0.8, 0.42, 0.1);
-		ConsoleColor(0.6, 0, 0, 1.0);
-   		ConsoleFont("Calibri", 30);
-		ConsoleText(0.33, 0.72, "SERVER IS OFFLINE");
-	}
-	
-	if (score_array != null)
-	{
-		for (var t = 0; t < len(score_array); t++)
-		{
-			ConsoleColor(0.0, 0.0, 0.0, 0.6);
-			ConsoleFilledRect(scoreX, scoreY - (maxScoreY * (t+1)), maxScoreX, maxScoreY);
-			
-			if (id == score_array[t][0])
-				ConsoleColor(0.6, 0.6, 0, 1.0);
-			else
-				ConsoleColor(0.6, 0, 0, 1.0);
+/****************************************************************************************************************** 
+ *                                          |WARP_STATUS.S3D|                                                     * 
+ *----------------------------------------------------------------------------------------------------------------* 
+ * This file represents the class that is in charge of dynamically handling the graphical interface of players    * 
+ * while they play the game. The main feature are:                                                                * 
+ *                                                                                                                * 
+ *      -> LIFE BAR: on the bottom part of the screen, there is a life bar that represents a full life. Once a    * 
+ *                   player is shot it goes down, and then recharger if a supply is collected from the ground.    * 
+ *                                                                                                                * 
+ *      -> GUN HANDLER: on the bottom left of the screen, an indicator with the current type of weapon can be     * 
+ *                      found, with the relative number of bullets. The normal pistol has 99, and never go down,  * 
+ *                      while the railgun has 10, that can be recharged from collecting a supply. The last weapon * 
+ *                      has "--", since only 2 can be shot, with the third replacing the first and so on.         * 
+ *                                                                                                                * 
+ *      -> TARGET: to help players during combat, a target can be found on the screen. It changes position if the * 
+ *                 player switches view.                                                                          * 
+ *                                                                                                                * 
+ *      -> MINI MAP: a minimap can be found on the top right corner of the UI, and it also highlightes the        * 
+ *                   current position of the player - enemies are not shown.                                      * 
+ *                                                                                                                * 
+ ******************************************************************************************************************/ 
+ 
+#include "warp_weapons.s3d" 
+ 
+//starting poing on x axis of the health bar 
+#define healthX  0.0 
+//starting poing on y axis of the health bar 
+#define healthY   0.02 
+//dimension on the x axis of the life bar - it takes all the screen 
+#define healthDimX  1 
+//dimension on the y axis of the life bar 
+#define healthDimY  0.02 
+//starting poing on x axis of the minimap 
+#define mapX  0.7 
+//starting poing on y axis of the minimap 
+#define mapY  1 
+//dimension on the x axis of the minimap 
+#define maxXmap  0.3 
+//dimension on the y axis of the minimap 
+#define maxYmap  0.1954 
+//dimension on the y axis of the map cell 
+#define mapStepY 0.0046 
+//dimension on the x axis of the map cell 
+#define mapStepX 0.00148 
+//starting poing on x axis of the score board 
+#define scoreX  0 
+//starting poing on y axis of the score board 
+#define scoreY  1 
+//dimension on the x axis of one element of the scores 
+#define maxScoreX 0.2 
+//dimension on the y axis of one element of the scores 
+#define maxScoreY 0.05 
+ 
+class status 
+{  
+	var window; 
+	var w_size; 
+	var life; 
+	var myWeapon; 
+	var heal_fg; 
+	var damage_fg; 
+	var curr_life; 
+	var map_matrix; 
+	var counter_x; 
+	var counter_y; 
+	var f; 
+	var num_rows; 
+	var num_columns; 
+	var p_map_x; //temporary position counter on x axis for the drawing of the minimap 
+	var p_map_y; //temporary position counter on y axis for the drawing of the minimap 
+	var server_offline_fg; 
+	  
+	var life_fx; 
+	var bullets_fx; 
+	  
+	init(); 
+	update(position, view, w_type, n_bullets, score_array, id); 
+	draw(position, view, w_type, n_bullets, score_array, id); 
+	recharge(type); 
+	heal(); 
+	bullet_damage(type); 
+	damage(); 
+	server_offline_fun(); 
+}; 
+ 
+function status::init() 
+{ 
+	server_offline_fg = false; 
+	life = 0.4; 
+	heal_fg = 0; 
+	damage_fg = 0; 
+	curr_life = life; 
+	map_matrix = array(0); 
+	counter_x = -mapStepX; 
+	counter_y = -mapStepy; 
+	p_map_x = -mapStepX; 
+	p_map_y = -mapStepy; 
+	  
+	f = LoadFile("level.txt"); 
+	num_rows = len(f); 
+	num_columns = len(f[0]); 
+	  
+	window = CVmWebBrowser(); 
+	w_size = window.GetSize(); 
+	w_size.x /= 1723; 
+	w_size.y /= 1043; 
+	draw([19, 0, 4], 1, 0, 10); 
+	  
+	life_fx  = CVmVRAWAV("life.wav"); 
+	bullets_fx  = CVmVRAWAV("bullets.wav"); 
+} 
+ 
+//hit = 0 if the player has not been shot, 0.1 if shot with gun, 0.5 if shot with railgun 
+function status::update(position, view, w_type, n_bullets, score_array, id) 
+{ 
+	w_size = window.GetSize(); 
+	w_size.x /= 1723; 
+	w_size.y /= 1043; 
+	heal(); 
+	damage(); 
+	draw(position, view, w_type, n_bullets, score_array, id); 
+} 
+ 
+function status::draw(position, view, w_type, n_bullets, score_array, id) 
+{ 
+	//status bar background 
+	ConsoleColor(0.0, 0.0, 0.0, 0.6); 
+	ConsoleFilledRect(w_size.x * 0.0, w_size.y * 0.1, w_size.x * 0.2, w_size.y * 0.1); 
+	switch (w_type) 
+	{ 
+		case 0: 
+			ConsoleColor(0.6, 0.0, 0.0, 1.0); 
+			ConsoleFilledRect(w_size.x * 0.005, w_size.y * 0.09, w_size.x * 0.188, w_size.y * 0.06); 
+			ConsoleColor(1.0, 0.8, 0.1, 1.0); 
+			ConsoleFont("Calibri", int(sqrt(w_size.x^2 * w_size.y^2) * 35)); 
+			ConsoleText(w_size.x * 0.045, w_size.y * 0.043, "GUN: 99"); 
+			break; 
+		    
+		case 1: 
+			ConsoleColor(0.5, 0.55, 0.4, 1.0); 
+			ConsoleFilledRect(w_size.x * 0.005, w_size.y * 0.09, w_size.x * 0.188, w_size.y * 0.06); 
+			ConsoleColor(1.0, 0.8, 0.1, 1.0); 
+			ConsoleFont("Calibri", int(sqrt(w_size.x^2 * w_size.y^2) * 35)); 
+		 	ConsoleText(w_size.x * 0.02, w_size.y * 0.043, "RAILGUN: "+str(n_bullets)); 
+		 	break; 
+		   
+		 default : 
+	} 
+	//target: 0 for first person, the other for third 
+	if (view == 1) 
+	{ 
+		ConsoleColor(1.0, 0.0, 0.0, 1.0); 
+		ConsoleFont("Arial", 10); 
+		ConsoleText(0.5, 0.78, "o"); 
+	} 
+	else  
+	{ 
+		ConsoleColor(1.0, 0.0, 0.0, 1.0); 
+		ConsoleFont("Arial", 10); 
+		ConsoleText(0.5, 0.55, "o"); 
+	} 
+	//Status regarding players life 
+	ConsoleColor(0.0, 0.0, 0.0, 0.6); 
+	ConsoleFilledRect(healthX, healthY, healthDimX, healthDimY); 
+	ConsoleColor(0.6, 0.0, 0.0, 1.0); 
+	ConsoleFilledRect(healthX, healthY, life, healthDimY); 
+	ConsoleColor(1.0, 1.0, 1.0, 1.0); 
+	ConsoleFont("Calibri", sqrt(w_size.x^2+w_size.y^2) * 10); 
+	ConsoleText(0.5, 0.005, "L  I  F  E"); 
+	  
+	//The following code is related to the creation of the mini-map that can be found on the 
+	//top right corner of the player UI. 
+	counter_x = -mapStepX; 
+	counter_y = -mapStepy; 
+	//map creation based on the characters found on the level.txt file. 
+	ConsoleColor(0.0, 0.0, 0.0, 0.6); 
+	ConsoleFilledRect(mapX, mapY, maxXmap, maxYmap); 
+	for(var i = 0; i < num_rows; i++) 
+	{ 
+		counter_y += mapStepY; 
+		counter_x = -mapStepX; 
+		for(var j = 0; j < num_columns; j++) 
+		{ 
+			counter_x += mapStepX; 
+			//inner walls 
+			switch (f[i][j]) 
+			{ 
+				case "*" : 
+					ConsoleColor(0.6, 0.0, 0.0, 1.0); 
+					ConsoleFilledRect(mapX + counter_x, mapY - counter_y, mapStepX, mapStepY); 
+					break; 
 				
-   			ConsoleFont("Calibri", int(sqrt(w_size.x^2 * w_size.y^2) * 30));
-			ConsoleText(scoreX + 0.04, scoreY - (maxScoreY * (t+1)) - 0.03, "Player "+ str(score_array[t][0]) + " - Score: " + str(score_array[t][1]));
-		}
-	}
-}
-
-//heals a player for 50% of his total life when he gets a supply
-function status::recharge(type)
-{
-	switch (type)
-	{
-		case 1 :
-			heal_fg = 1;
-			curr_life = life + 0.5;
-			life_fx.play();
-			break;
-		
-		case 2 :
-			myWeapon.n_bullets_rg = 10;
-			bullets_fx.play();
-			break;
-		
-		default :
-	}
-}
-
-function status::heal()
-{
-	if ((heal_fg == 1) && (life <= curr_life))
-		life += 0.01;
-	else
-		heal_fg = 0;
-}
-
-function status::bullet_damage(type)
-{
-	switch (type)
-	{
-		case 0 :
-			damage_fg = 1;
-			curr_life = life - 0.1;
-			break;
-			
+				 //outer walls 
+				case "#" : 
+					ConsoleColor(0.6, 0.0, 0.0, 1.0); 
+					ConsoleFilledRect(mapX + counter_x, mapY - counter_y, mapStepX, mapStepY); 
+					break; 
+					
+				//heart box 
+				case "@" : 
+					ConsoleColor(0.5, 0.55, 0.4, 1.0); 
+					ConsoleFilledRect(mapX + counter_x, mapY - counter_y, mapStepX, mapStepY); 
+					break; 
+					
+				//two cases one on top the other 
+				case "+" : 
+					ConsoleColor(0.5, 0.55, 0.4, 1.0); 
+					ConsoleFilledRect(mapX + counter_x, mapY - counter_y, mapStepX, mapStepY); 
+					break; 
+				  
+				default : 
+			 } 
+		 } 
+	} 
+	p_map_x = mapX + mapStepX * int(position.x); 
+	p_map_y = mapY - mapStepY * int(position.z); 
+	ConsoleColor(01.0, 0.8, 0.1, 1.0); 
+	ConsoleFilledRect(p_map_x, p_map_y, mapStepX, mapStepY); 
+	  
+	//The following cose is realized in order to draw on the top left corner of the game the players score. 
+	ConsoleColor(0.0, 0.0, 0.0, 0.6); 
+	ConsoleFilledRect(scoreX, scoreY, maxScoreX, maxScoreY); 
+	  
+	ConsoleColor(0.6, 0, 0, 1.0); 
+	ConsoleFont("Calibri", sqrt(w_size.x^2 + w_size.y^2) * 30); 
+	ConsoleText(scoreX + 0.063, scoreY - 0.036, "SCORE:"); 
+	  
+	if (server_offline_fg == true) 
+	{ 
+		ConsoleColor(0.0, 0.0, 0.0, 0.6); 
+		ConsoleFilledRect(0.3, 0.8, 0.42, 0.1); 
+		ConsoleColor(0.6, 0, 0, 1.0); 
+		ConsoleFont("Calibri", sqrt(w_size.x^2+w_size.y^2) * 55); 
+		ConsoleText(0.33, 0.72, "SERVER IS OFFLINE"); 
+	} 
+	
+	if (score_array != null) 
+	{ 
+		for (var t = 0; t < len(score_array); t++) 
+		{ 
+			ConsoleColor(0.0, 0.0, 0.0, 0.6); 
+			ConsoleFilledRect(scoreX, scoreY - (maxScoreY * (t+1)), maxScoreX, maxScoreY); 
+			   
+			if (id == score_array[t][0]) 
+			ConsoleColor(0.6, 0.6, 0, 1.0); 
+			else 
+			ConsoleColor(0.6, 0, 0, 1.0); 
+			    
+			ConsoleFont("Calibri", int(sqrt(w_size.x^2 * w_size.y^2) * 30)); 
+			ConsoleText(scoreX + 0.04, scoreY - (maxScoreY * (t+1)) - 0.03, "Player "+ str(score_array[t][0]) + " - Score: " + str(score_array[t][1])); 
+		} 
+	} 
+} 
+ 
+//heals a player for 50% of his total life when he gets a supply, or recharges the railgun bullets to 10.
+function status::recharge(type) 
+{ 
+	switch (type) 
+	{ 
 		case 1 : 
-			damage_fg = 1;
-			curr_life = life - 0.5;
-			break;
-		
-		default :
-	}
-	if (curr_life <= 0)
-		return true;
-	else
-		return false;
-}
+			heal_fg = 1; 
+			curr_life = life + 0.5; 
+			life_fx.play(); 
+			break; 
+		 
+		case 2 : 
+			myWeapon.n_bullets_rg = 10; 
+			bullets_fx.play(); 
+			break; 
+		 
+		default : 
+	} 
+} 
+ 
+//gracefully heals a player over time.
+function status::heal() 
+{ 
+	if ((heal_fg == 1) && (life <= curr_life)) 
+		life += 0.01;
+	else 
+		heal_fg = 0; 
+} 
 
-function status::damage()
-{
-	if ((damage_fg == 1) && (life >= curr_life))
-		life -= 0.01;
-	else
-		damage_fg = 0;
-}
 
-function status::server_offline_fun()
-{
-	server_offline_fg = true;
+//function used once a player is hit in order to compute his new life. Here we check weather a player dies.
+function status::bullet_damage(type) 
+{ 
+	switch (type) 
+	{ 
+		case 0 : 
+			damage_fg = 1; 
+			curr_life = life - 0.1; 
+			break; 
+		   
+		case 1 :  
+			damage_fg = 1; 
+			curr_life = life - 0.5; 
+			break; 
+		  
+		default : 
+	} 
+	
+	if (curr_life <= 0) 
+		return true; 
+	else 
+		return false; 
+} 
+ 
+//gracefully shortens the life of a player.
+function status::damage() 
+{ 
+	if ((damage_fg == 1) && (life >= curr_life)) 
+		life -= 0.01; 
+	else 
+		damage_fg = 0; 
+} 
+ 
+//This function is called when the server crashes or disconnects. It is used to signal
+//every player of this event.
+function status::server_offline_fun() 
+{ 
+	server_offline_fg = true; 
 }
