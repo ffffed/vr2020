@@ -48,6 +48,9 @@ function supplies::init()
 	life_mesh.Scale(1, 0.5, 1);
 }
 
+/* This function creates a single supply. This whole class is thought in order to avoid useless
+ * mesh creations. We ONCE instantiate all meshes, and then just create the single supply.
+ */
 function supplies::create_supply(type, pos)
 {
 	switch (type)

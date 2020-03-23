@@ -259,7 +259,8 @@ function status::recharge(type)
 	{ 
 		case 1 : 
 			heal_fg = 1; 
-			curr_life = life + 0.5; 
+			curr_life = life + 0.5;
+			curr_life = (curr_life > 1) ? 1 : curr_life;
 			life_fx.play(); 
 			break; 
 		 

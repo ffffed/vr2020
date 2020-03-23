@@ -8,7 +8,7 @@
  * Once the player is disconnected or dies, it is removed from the list of enemies and will not be drawn.         *
  ******************************************************************************************************************/
 
-//Frames used for the players movement
+//Frames used for the player movement
 #define ENEMY_START_WALK	16
 #define ENEMY_END_WALK		48
 

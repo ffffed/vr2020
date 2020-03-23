@@ -21,7 +21,7 @@
 #include "warp_enemy.s3d"
 #include "warp_supplies.s3d"
 //client/server defines
-#define SERVER_IP 		"192.168.1.112"
+#define SERVER_IP 		"192.168.178.104"
 #define SERVER_PORT		50023
 #define CLIENT_PORT		50024
 
@@ -137,14 +137,30 @@
 #define DEAD_PLAYER				(13)
 #define BULLET_ON_PERSON		(14)
 #define SERVER_BUSY				(15)
-#define NEW_SCORE				(16)
-#define OLD_SCORES				(17)
+#define SCORES					(17)
 #define KILL_SCORE				(18)
 #define CONNECTION_ACK			(19)
 #define EXIT_ACK				(20)
 #define RIP_PDU					(21)
 #define SERVER_OFFLINE			(22)
 #define ALIVE_ACK				(23)
+/* REPLY ACKs */
+#define OK_NEW_PLAYER			(24)
+#define OK_OLD_PLAYERS			(25)
+#define OK_CHANGE_WEAPON		(26)
+#define OK_EXIT_NOTIFICATION	(27)
+#define OK_NEW_AMMO				(28)
+#define OK_OLD_AMMO				(29)
+#define OK_COLLECTED_AMMO		(30)
+#define OK_SHOT_PDU				(31)
+#define OK_BULLET_ON_WALL		(32)
+#define OK_DEAD_PLAYER			(33)
+#define OK_BULLET_ON_PERSON		(34)
+#define OK_SCORES				(35)
+#define OK_KILL_SCORE			(37)
+#define OK_SERVER_OFFLINE		(38)
+/* REPLY SERVER TO CLIENT */
+#define OK_AMMO_STC				(39)
 
 #define TIME_TO_ACK				500
 #define connection_retry 		200
@@ -192,8 +208,27 @@ var last_ack_send;
 var address1;
 var arr;
 var start_ack = false;
+var cnt_new_player;
+var cnt_old_player;
+var cnt_change_w;
+var cnt_exit_not;
+var cnt_new_ammo;
+var cnt_old_ammo;
+var cnt_collected_ammo;
+var cnt_shot;
+var cnt_wall;
+var cnt_dead;
+var cnt_hit; // bullet on person
+var cnt_old_score;
+var cnt_new_score;
+var cnt_kill_score;
+var cnt_server_off;
+var ret_back = array(1); // array for back pdu
+VAR flag = false;
+
+var cnt_ammo_stc;
 /* Function declarations */
-function CameraMoveMouse();
+//function CameraMoveMouse();
 
 function mySend(address, port, data)
 {
@@ -305,6 +340,24 @@ function OnInit(params)
 	myplayer.setposition(rcv_data[1]);
 	welcome_fx.play();
 	
+	cnt_new_player = -1;
+	cnt_old_player = -1;
+	cnt_change_w = -1;
+	cnt_exit_not = -1;
+	cnt_new_ammo = -1;
+	cnt_old_ammo = -1;
+	cnt_collected_ammo = -1;
+	cnt_shot = -1;
+	cnt_wall = -1;
+	cnt_dead = -1;
+	cnt_hit = -1; // bullet on person
+	cnt_old_score = -1;
+	cnt_new_score = -1;
+	cnt_kill_score = -1;
+	cnt_server_off = -1;
+	
+	
+	cnt_ammo_stc = 0;
 	SetTimeStep(1);
 }
 //Here we notify the server that we are going to leave the game,
@@ -331,7 +384,6 @@ function OnExit()
 		
 		exit_rcv = (exit_data != null && exit_data[0] == EXIT_ACK) ?
 			true : exit_rcv;
-		
 	}
 }
 
@@ -347,7 +399,7 @@ function OnFrame()
 	if (myplayer.has_teleported && (myplayer.teleport_cnt == 0))
 		myplayer.has_teleported = false;
 	/* manage camera */
-	CameraMoveMouse();
+	//CameraMoveMouse();
 	//update the position of the player
 	myplayer.update();
 	position = myplayer.position;
@@ -429,12 +481,22 @@ function OnFrame()
 			if ( (int(position.x) == arr_supplies[t].obj.getPosition().x) &&
 				(int(position.z) == arr_supplies[t].obj.getPosition().z) )
 			{
-				var ammo_pdu = array(3);
+				var ammo_pdu = array(4);
 				ammo_pdu[0] = COLLECTED_AMMO;
 				ammo_pdu[1] = myplayer.id;
 				ammo_pdu[2] = t;
-				mySend(SERVER_IP, SERVER_PORT, ammo_pdu);
+				ammo_pdu[3] = cnt_ammo_stc;
+				flag = false;
+				do
+				{
+					mySend(SERVER_IP, SERVER_PORT, ammo_pdu);
+					var rec = NetVarReceiveFrom(net_channel, &address1);
+					if ((rec != null) && (len(rec) == 1) &&(rec[0] == OK_AMMO_STC))
+					flag = true;
+				}while(flag != true);
+				
 				myplayer.mystatus.recharge(arr_supplies[t].type);
+				cnt_ammo_stc += 1;
 				adel(arr_supplies, t);
 			}
 		}
@@ -491,6 +553,7 @@ function OnFrame()
 	// ...and all the boxes on the ground ...
 	foreach (var t in arr_supplies)
 		t.draw_box();
+		
 	// ... and all the flying bullets. Enemy_bullets contains only the enemy ones.
 	foreach (var t in enemy_bullets)
 	{
@@ -624,6 +687,8 @@ function DownloadReady(RequestID)
 
 function OnTimer()
 {
+	var arr_tmp = array(0);
+	
 	if(start_ack)
 	{
 		if(GetTime() - last_ack_send >= TIME_TO_ACK)
@@ -641,15 +706,20 @@ function OnTimer()
 	{
 		var enemyBull;
 		var placeholder;
-		var p;
 		switch (received_data[0])
 		{
 			//a new player has entered the game.
 			//We must add him to the structure containing all the enemies.
 			case NEW_PLAYER :
-				myenemy = enemy();
-				myenemy.init(received_data[2], received_data[3], received_data[1]);
-				aadd(players, myenemy);
+				if(cnt_new_player != received_data[5])
+				{
+					cnt_new_player = received_data[5];
+					myenemy = enemy();
+					myenemy.init(received_data[2], received_data[3], received_data[1]);
+					aadd(players, myenemy);	
+				} 
+				ret_back[0] = OK_NEW_PLAYER;
+				NetVarSendTo(SERVER_IP, SERVER_PORT, ret_back);
 				break;
 			//a player has left the game. We must therefore delete his
 			//instance from the enemy and score structure.
@@ -666,14 +736,20 @@ function OnTimer()
 			//sent by the server once I connect to the game. It lets me
 			//obtain information of players already in the game.	
 			case OLD_PLAYERS :
-				arr = received_data[1];
-				foreach (var t in received_data[1])
+				if(cnt_old_player != received_data[2])
 				{
-					myenemy = enemy();
-					myenemy.init(t[2], t[3], t[1]);
-					myenemy.switch_weapon(t[4]);
-					aadd(players, myenemy);				
+					cnt_old_player = received_data[2];
+					arr = received_data[1];
+					foreach (var t in received_data[1])
+					{
+						myenemy = enemy();
+						myenemy.init(t[2], t[3], t[1]);
+						myenemy.switch_weapon(t[4]);
+						aadd(players, myenemy);				
+					}
 				}
+				ret_back[0] = OK_OLD_PLAYERS;
+				NetVarSendTo(SERVER_IP, SERVER_PORT, ret_back);
 				break;
 			//a player has changed his position/angle. We must update the
 			//correct enemy in order to draw him coherently.
@@ -692,32 +768,42 @@ function OnTimer()
 			//an opponent changed his weapon. We must modify the player structure
 			//in order to draw him coherently.
 			case CHANGE_WEAPON :
-				for (var k = 0; k < len(players); k++)
+				if (cnt_change_w != received_data[3])
+				{
+					cnt_change_w = received_data[3];
+					for (var k = 0; k < len(players); k++)
 					if (received_data[1] == players[k].id)
 						players[k].switch_weapon(received_data[2]);
+				}
+				ret_back[0] = OK_CHANGE_WEAPON;
+				NetVarSendTo(SERVER_IP, SERVER_PORT, ret_back);
 				break;
 			//a new ammo box has spawned on the map. At first, if 3 were already on the map,
 			//we delete the first one (FIFO), and then add a box.
 			case NEW_AMMO :
-				if (len(arr_supplies) >= 3)
-					adel(arr_supplies, 0);
-				mybox = mysupply.create_supply(received_data[1][0], received_data[1][1]);
-				if (mybox != null)
-					aadd(arr_supplies, mybox);
-				break;
-			//message sent by the server when I join a game. It lets me know about
-			//the boxes already on the map.
-			case OLD_AMMO :
-				for (var k = 0; k < len(received_data[1]); k++)
-				{
-					mybox = mysupply.create_supply(received_data[1][k][0], received_data[1][k][0]);
-					if (mybox != null)
-						aadd(arr_supplies, mybox);
-				}
+			    if (cnt_new_ammo != received_data[2])
+			    {
+			    	cnt_new_ammo = received_data[2];
+			    	for (var k = 0; k < len(received_data[1]); k++)
+					{
+						mybox = mysupply.create_supply(received_data[1][k][0], received_data[1][k][1]);
+						if (mybox != null)
+							aadd(arr_tmp, mybox);
+					}
+					arr_supplies = arr_tmp;
+			    }
+			    ret_back[0] = OK_NEW_AMMO;
+				NetVarSendTo(SERVER_IP, SERVER_PORT, ret_back);
 				break;
 			//a player has collected a box, therefore I delete it from the structure.
 			case COLLECTED_AMMO :
-				adel(arr_supplies, received_data[2]);
+				if(cnt_collected_ammo != received_data[3])
+				{
+					cnt_collected_ammo = received_data[3];
+					adel(arr_supplies, received_data[2]);
+				}
+				ret_back[0] = OK_COLLECTED_AMMO;
+				NetVarSendTo(SERVER_IP, SERVER_PORT, ret_back);
 				break;
 			//a player has shot a bullet. We therefore create a bullet class instance and append it
 			//to the structure containing all the enemy player bullets. 
@@ -734,11 +820,9 @@ function OnTimer()
 			//the structure containing all the enemy bullets.
 			case BULLET_ON_WALL :
 				for(var k = 0; k < len(enemy_bullets); k++)
-				{
 					if ( (enemy_bullets[k][0] == received_data[1]) 
 						&& (enemy_bullets[k][1].bull_id == received_data[2]) )
 						adel(enemy_bullets, k);
-				}
 				break;
 			//a player died! we must delete his instance from the 2 structures
 			//that contained him: players and score_array.
@@ -747,22 +831,18 @@ function OnTimer()
 					if (players[t].id == received_data[1])
 							adel(players, t);
 				for (var t = 0; t < len(score_array); t++)
-				{
 					if (score_array[t][0] == received_data[1])
 						adel(score_array, t);
-				}
 				break;
 			//a bullet that had been shot caught a player! We have to remove the bullet
 			//from the list of enemy bullets or ours if the bullet was shot by us.
 			case BULLET_ON_PERSON :
 				if (received_data[1] != myplayer.id)
 				{
-				for(var k = 0; k < len(enemy_bullets); k++)
-					{
+					for(var k = 0; k < len(enemy_bullets); k++)
 						if ( (enemy_bullets[k][0] == received_data[1]) 
 							&& (enemy_bullets[k][1].bull_id == received_data[2]) )
 							adel(enemy_bullets, k);
-					}
 				}
 				else
 					for(var k = 0; k < len(myplayer.bullet_array); k++)
@@ -771,17 +851,17 @@ function OnTimer()
 				break;
 			//as soon as I connect to the server, he sends us the scores of the players
 			//that were already in the game.
-			case OLD_SCORES : 
-				score_array = received_data[1];
+			case SCORES :
+				if(cnt_old_score != received_data[2])
+				{
+					cnt_old_score = received_data[2];
+					score_array = received_data[1];
+				}
+				ret_back[0] = OK_SCORES;
+				NetVarSendTo(SERVER_IP, SERVER_PORT, ret_back);
 				break;
 			//when a new player enteres the arena, we have to add a score instance to 
 			//the appropriate structure.
-			case NEW_SCORE :
-				p = array(2);
-				p[0] = received_data[1];
-				p[1] = received_data[2];
-				aadd(score_array, p);
-				break;
 			//when a player dies we must update the score of the player
 			//whos bullet was.
 			case KILL_SCORE :

@@ -124,20 +124,34 @@
 #define CHANGE_WEAPON			(7)
 #define NEW_AMMO				(8)
 #define COLLECTED_AMMO			(9)
-#define OLD_AMMO				(10)
 #define SHOT_PDU				(11)
 #define BULLET_ON_WALL			(12)
 #define DEAD_PLAYER				(13)
 #define BULLET_ON_PERSON		(14)
 #define SERVER_BUSY				(15)
-#define NEW_SCORE				(16)
-#define OLD_SCORES				(17)
+#define SCORES					(17)
 #define KILL_SCORE				(18)
 #define CONNECTION_ACK			(19)
 #define EXIT_ACK				(20)
 #define RIP_PDU					(21)
 #define SERVER_OFFLINE			(22)
 #define ALIVE_ACK				(23)
+/* REPLY ACKs */
+#define OK_NEW_PLAYER			(24)
+#define OK_OLD_PLAYERS			(25)
+#define OK_CHANGE_WEAPON		(26)
+#define OK_EXIT_NOTIFICATION	(27)
+#define OK_NEW_AMMO				(28)
+#define OK_COLLECTED_AMMO		(30)
+#define OK_SHOT_PDU				(31)
+#define OK_BULLET_ON_WALL		(32)
+#define OK_DEAD_PLAYER			(33)
+#define OK_BULLET_ON_PERSON		(34)
+#define OK_SCORES				(35)
+#define OK_KILL_SCORE			(37)
+#define OK_SERVER_OFFLINE		(38)
+/* REPLY SERVER TO CLIENT */
+#define OK_AMMO_STC				(39)
 
 var net_channel;
 // PLAYER_ARRAY = [NEW_PLAYER, player_id, position, angle, current_weapon]
@@ -159,6 +173,29 @@ var pos_arr;
 var start_time;
 var score_array;
 var conn_ack = false;
+/* COUNTER FOR PDU */
+var cnt_new_player;
+var cnt_old_player;
+var cnt_change_w;
+var cnt_exit_not;
+var cnt_new_ammo;
+var cnt_old_ammo;
+var cnt_collected_ammo;
+var cnt_shot;
+var cnt_wall;
+var cnt_dead;
+var cnt_hit; // bullet on person
+var cnt_old_score;
+var cnt_new_score;
+var cnt_kill_score;
+var cnt_server_off;
+
+
+var cnt_ammo_stc;
+var flag = false;
+
+
+
 
 function OnDownload()
 {
@@ -186,7 +223,27 @@ function OnInit()
 	id = 0;
 	conn_ack = false;
 	
+	cnt_new_player = 0;
+	cnt_old_player = 0;
+	cnt_change_w = 0;
+	cnt_exit_not = 0;
+	cnt_new_ammo = 0;
+	cnt_old_ammo = 0;
+	cnt_collected_ammo = 0;
+	cnt_shot = 0;
+	cnt_wall = 0;
+	cnt_dead = 0;
+	cnt_hit = 0; // bullet on person
+	cnt_old_score = 0;
+	cnt_new_score = 0;
+	cnt_kill_score = 0;
+	cnt_server_off = 0;
+	
+	/* SERVER TO CLIENT ACK CNT */
+	cnt_ammo_stc = -1;
+	
 	start_time = GetTime();
+	
 	
 	SetTimeStep(1);
 }
@@ -269,14 +326,29 @@ function delete_player(exit_id)
  * PDU[1] = supply structure[type, position].       *
  ****************************************************/
 
-function notificate_new_ammo(supply)
+function notificate_new_ammo()
 {
-	var supply_pdu = array(2);
+	var supply_pdu = array(3);
 	supply_pdu[0] = NEW_AMMO;
-	supply_pdu[1] = supply;
+	supply_pdu[1] = arr_supplies;
+	supply_pdu[2] = cnt_new_ammo;
 	
 	foreach (var t in players_ip)
-		mySend(t[1], CLIENT_PORT, supply_pdu);
+	{
+		do
+		{
+			mySend(t[1], CLIENT_PORT, supply_pdu);
+			var rec = NetVarReceiveFrom(net_channel, &address1);
+			if ((rec != null) && (len(rec) == 1) &&(rec[0] == OK_NEW_AMMO))
+				flag = true;
+		}while(flag != true);
+							
+	cnt_new_ammo+=1;
+		
+			
+		
+	}
+		
 }
 
 /******************************************************************************************************************
@@ -316,7 +388,7 @@ function adding_supply()
 			aadd(arr_supplies, supply);
 		}
 			
-		notificate_new_ammo(supply);
+		notificate_new_ammo();
 	}
 }
 
@@ -363,13 +435,17 @@ function adding_supply()
 
 function OnTimer()
 {
-	var player; //placeholder for new player info
-	var ack; //placeholder for newly generated parameters for new players
-	var new_ip; //placeholder for a new element in the players_ip array
-	var new_player_ack;
-	var exit_id;
-	var exit_pdu;
-	var rip;
+	/* ON TIMER VARIABLES */
+var player; //placeholder for new player info
+var ack; //placeholder for newly generated parameters for new players
+var new_ip; //placeholder for a new element in the players_ip array
+var new_player_ack;
+var exit_id;
+var exit_pdu;
+var rip;
+var rec;
+var tmp; // TEMPORANEUS ARRAY
+	
 	
 	var curr_time = GetTime();
 	var received_data = NetVarReceiveFrom(net_channel, &address1);
@@ -416,7 +492,6 @@ function OnTimer()
 						conn_ack = false;
 						var msg = "SERVER: A new player entered the arena in position: ";
 						var msg2 = ", and with id ";
-						trace(msg);
 						var p_pos = ack[1];
 						var p_id = ack[2];
 						trace(msg, p_pos, msg2, p_id);
@@ -434,53 +509,88 @@ function OnTimer()
 						//sending to the new player the list of the exsisting players
 						if (len(players) > 0)
 						{
-							var old_players_arr = array(2);
+							var old_players_arr = array(3);
 							old_players_arr[0] = OLD_PLAYERS;
 							old_players_arr[1] = players;
-							mySend(address1, CLIENT_PORT, old_players_arr);
+							old_players_arr[2] = cnt_old_player;
+							flag = false;
+							do
+							{
+								mySend(address1, CLIENT_PORT, old_players_arr);
+								rec = NetVarReceiveFrom(net_channel, &address1);
+								if ((rec != null) && (len(rec) == 1) &&(rec[0] == OK_OLD_PLAYERS))
+										flag = true;
+							}while(flag != true);
+							
+							cnt_old_player+=1;
 						}
 					
 						//sending to the new player the ammo boxes already deployed
 						if (len(arr_supplies) > 0)
 						{
-							var old_arr_supply = array(2);
-							old_arr_supply[0] = OLD_AMMO;
+							var old_arr_supply = array(3);
+							old_arr_supply[0] = NEW_AMMO;
 							old_arr_supply[1] = arr_supplies;
-							mySend(address1, CLIENT_PORT, old_arr_supply);
+							old_arr_supply[2] = cnt_new_ammo;
+							flag = false;
+							do
+							{	
+								mySend(address1, CLIENT_PORT, old_arr_supply);
+								rec = NetVarReceiveFrom(net_channel, &address1);
+								if ((rec != null) && (len(rec) == 1) &&(rec[0] == OK_NEW_AMMO))
+										flag = true;
+							}while(flag != true);
+							
+							cnt_new_ammo+=1;
 						}
 						
 						//here we add a new instance to the score array structure ...
 						var nsc = array(2);
 						nsc[0] = id;
-						nsc[1] = 0;
+						nsc[1] = 0; // initial Score
 						aadd(score_array, nsc);
 						// ... and send him the new structure, with also the old players.
-						var new_sc = array(2);
-						new_sc[0] = OLD_SCORES;
+						var new_sc = array(3);
+						new_sc[0] = SCORES;
 						new_sc[1] = score_array;
-						mySend(address1, CLIENT_PORT, new_sc);
+						new_sc[2] = cnt_old_score;
+						flag = false;
+						foreach (var t in players_ip)
+						{
+							do{
+								mySend(address1, CLIENT_PORT, new_sc);
+								rec = NetVarReceiveFrom(net_channel, &address1);
+									if ((rec != null) && (len(rec) == 1) &&(rec[0] == OK_SCORES))
+											flag = true;
+							}while(flag != true);
+						}
+						cnt_old_score +=1;
 						//the player variable contains all the initial information of the
 						//player. We add it to the structure containing all of them ...
-						player = array(5);
+						player = array(6);
 						player[0] = NEW_PLAYER;
 						player[1] = ack[2];
 						player[2] = ack[1];
 						player[3] = 0; //angle
 						player[4] = 0; //starting weapon
 						aadd(players, player);
+						player[5] = cnt_new_player;
 						// ... and send it to everyone, so they can add it to the structure and draw him.
+						flag = false;
 						foreach (var t in players_ip)
+						{
 							if (ack[2] != t[0])
-								mySend(t[1], CLIENT_PORT, player);
-						//new score (initialized to 0) stored ...
-						var nsc2 = array(3);
-						nsc2[0] = NEW_SCORE;
-						nsc2[1] = id;
-						nsc2[2] = 0;	
-						// ... and sent to every other player.
-						foreach (var t in players_ip)
-							if (ack[2] != t[0])
-								mySend(t[1], CLIENT_PORT, nsc2);
+							{
+								do
+								{
+									mySend(t[1], CLIENT_PORT, player);
+									rec = NetVarReceiveFrom(net_channel, &address1);
+									if ((rec != null) && (len(rec) == 1) &&(rec[0] == OK_NEW_PLAYER))
+										flag = true;
+								}while(flag != true);
+								cnt_new_player +=1;
+							}
+						}
 					}
 					//if the player doesn't accept the connection, we reuse the ID we gave him.
 					else
@@ -490,12 +600,28 @@ function OnTimer()
 			//Once a player changes weapon, we save the information for future players and
 			//tell every player of this change.
 			case CHANGE_WEAPON :
+				flag = false; 
+				tmp = array(4);
+				tmp[0] = received_data[0];
+				tmp[1] = received_data[1];
+				tmp[2] = received_data[2];
+				tmp[3] = cnt_change_w;
 				for (var t = 0; t < len(players); t++)
 					if (received_data[1] == players[t][1])
 							players[t][4] = received_data[2];
 				foreach (var t in players_ip)
 					if (received_data[1] != t[0])
-						mySend(t[1], CLIENT_PORT, received_data);
+					{
+						do
+						{
+							mySend(t[1], CLIENT_PORT, tmp);
+							rec = NetVarReceiveFrom(net_channel, &address1);
+							if ((rec != null) && (len(rec) == 1) &&(rec[0] == OK_CHANGE_WEAPON))
+								flag = true;
+						}while(flag != true);
+						
+						cnt_change_w +=1;
+					}	
 				break;
 			//once a player exits the game (not from dying), we delete him from every structure
 			//and tell everyone of this event by invoking the delete_player() function.
@@ -529,10 +655,35 @@ function OnTimer()
 			//Once a player collects a box, he sends the information to the server ...
 			// ... so he can tell every other player of this change.
 			case COLLECTED_AMMO :
-				adel(arr_supplies, received_data[2]);
-				foreach (var t in players_ip)
-					if (received_data[1] != t[0])
-						mySend(t[1], CLIENT_PORT, received_data);
+				if(cnt_ammo_stc != received_data[3])
+				{
+					cnt_ammo_stc = received_data[3];
+					flag = false;
+					adel(arr_supplies, received_data[2]);
+					tmp = array(4);
+					tmp[0] = received_data[0];
+					tmp[1] = received_data[1];
+					tmp[2] = received_data[2];
+					tmp[3] = cnt_collected_ammo;
+					foreach (var t in players_ip)
+					{
+						if (received_data[1] != t[0])
+						{
+							do
+							{
+								mySend(t[1], CLIENT_PORT, tmp);
+								rec = NetVarReceiveFrom(net_channel, &address1);
+								if ((rec != null) && (len(rec) == 1) &&(rec[0] == OK_COLLECTED_AMMO))
+									flag = true;
+											
+							}while(flag != true);
+							cnt_collected_ammo +=1;
+						}	
+					}	
+				} 
+				tmp = array(1);
+				tmp[0] = OK_AMMO_STC;
+				mysend(address1, CLIENT_PORT, tmp);
 				break;
 			//Once a player shoots a bullet, he sends the information to the server ...
 			// ... so he can tell every other player of this bullet.	
@@ -584,9 +735,17 @@ function OnTimer()
 				for (var t = 0; t < len(score_array); t++)
 					if (received_data[1] == score_array[t][0])
 						score_array[t][1] += 1;
-				rip = array(1);
+				rip = array(2);
 				rip[0] = RIP_PDU;
-				mySend(address1, CLIENT_PORT, rip);
+				rip[1] = cnt_kill_score;
+				do{
+					mySend(address1, CLIENT_PORT, rip);
+					rec = NetVarReceiveFrom(net_channel, &address1);
+					if ((rec != null) && (len(rec) == 1) &&(rec[0] == OK_KILL_SCORE))
+							flag = true;
+											
+				}while(flag != true);
+				cnt_kill_score +=1;
 				break;
 			//Collected by the server to keep track of active clients. If they crash
 			//they will stop sending this message.

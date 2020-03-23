@@ -61,7 +61,6 @@ function bullet::init(pos, dir, lvl_matrix, type, id)
 		
 		default :
 	}
-
 	hit_fg = False;
 }
 
